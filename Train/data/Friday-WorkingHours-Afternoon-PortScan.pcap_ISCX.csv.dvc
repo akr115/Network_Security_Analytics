@@ -1,0 +1,5 @@
+outs:
+- md5: 4892380364f9c7ef297d3094d19f26bf
+  size: 76906168
+  hash: md5
+  path: Friday-WorkingHours-Afternoon-PortScan.pcap_ISCX.csv

@@ -1,0 +1,5 @@
+outs:
+- md5: 134224ec64782709ae1078379f72c4fa
+  size: 58316725
+  hash: md5
+  path: Friday-WorkingHours-Morning.pcap_ISCX.csv
