@@ -1,0 +1,5 @@
+outs:
+- md5: 6013b35c62fd1e8d2ffdc28a3c00d2b5
+  size: 175176
+  hash: md5
+  path: label_distribution_medium.png

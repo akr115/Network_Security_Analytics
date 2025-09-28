@@ -1,0 +1,5 @@
+outs:
+- md5: ac4783e851a06f4b653d7fc22863ac5d
+  size: 215323
+  hash: md5
+  path: label_distribution_large.png

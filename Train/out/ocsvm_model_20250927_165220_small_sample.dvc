@@ -1,0 +1,6 @@
+outs:
+- md5: 7adac641b73ddf65174c8d4420b3c7af.dir
+  size: 287280
+  nfiles: 6
+  hash: md5
+  path: ocsvm_model_20250927_165220_small_sample

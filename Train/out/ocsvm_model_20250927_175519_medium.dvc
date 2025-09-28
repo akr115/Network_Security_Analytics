@@ -1,0 +1,6 @@
+outs:
+- md5: a8fdc5944bda7c54772c7dab404d1f28.dir
+  size: 7687015
+  nfiles: 6
+  hash: md5
+  path: ocsvm_model_20250927_175519_medium
