@@ -55,9 +55,9 @@ class Config:
         'gamma': 'scale',
         'nu': 0.05,
         'shrinking': True,
-        'cache_size': 20000,
+        'cache_size': 22000,
         'verbose': False,
-        'max_iter': -1
+        'max_iter': 1000
     }
     
     # OCSVM Parameters for small sample (faster training)
@@ -71,26 +71,37 @@ class Config:
         'max_iter': -1
     }
     
+    # # OCSVM Parameters for medium sample
+    # OCSVM_PARAMS_MEDIUM = {
+    #     'kernel': 'rbf',
+    #     'gamma': 'scale',
+    #     'nu': 0.07,  # Between small and full
+    #     'cache_size': 20000,
+    #     'verbose': False,
+    #     'max_iter': -1
+    # }
+
+
     # OCSVM Parameters for medium sample
     OCSVM_PARAMS_MEDIUM = {
-        'kernel': 'rbf',
-        'gamma': 'scale',
-        'nu': 0.07,  # Between small and full
+        'kernel': 'sigmoid',
+        'gamma': 1.0,
+        'nu': 0.1,  # Between small and full
         'shrinking': True,
         'cache_size': 20000,
         'verbose': False,
-        'max_iter': -1
+        'max_iter': 1000 # 1000 is better than -1 as seen on hyperparameter tuning
     }
     
     # OCSVM Parameters for large sample
     OCSVM_PARAMS_LARGE = {
         'kernel': 'rbf',
         'gamma': 'scale',
-        'nu': 0.06,  # Between medium and full
+        'nu': 0.04,  # Between small and full
         'shrinking': True,
         'cache_size': 30000,
         'verbose': False,
-        'max_iter': -1
+        'max_iter': -1 # 1000 is better than -1 as seen on hyperparameter tuning
     }
     
     # Hyperparameter search space
@@ -825,15 +836,15 @@ def parse_arguments():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python trainer2.py                           # Full training
-  python trainer2.py --small-sample            # Quick test (100K samples)
-  python trainer2.py --medium-sample           # Medium test (500K samples)
-  python trainer2.py --large-sample            # Large test (1M samples, 2x medium)
-  python trainer2.py --hyperparam-tune         # Hyperparameter tuning
-  python trainer2.py --hyperparam-tune --quick # Quick hyperparameter tuning
-  python trainer2.py -s                        # Short form for small sample
-  python trainer2.py -m                        # Short form for medium sample
-  python trainer2.py -l                        # Short form for large sample
+  python trainer.py                           # Full training
+  python trainer.py --small-sample            # Quick test (100K samples)
+  python trainer.py --medium-sample           # Medium test (500K samples)
+  python trainer.py --large-sample            # Large test (1M samples, 2x medium)
+  python trainer.py --hyperparam-tune         # Hyperparameter tuning
+  python trainer.py --hyperparam-tune --quick # Quick hyperparameter tuning
+  python trainer.py -s                        # Short form for small sample
+  python trainer.py -m                        # Short form for medium sample
+  python trainer.py -l                        # Short form for large sample
 
 Dataset Size Comparison:
   Small:  100K samples,  50K benign training
