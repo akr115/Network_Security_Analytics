@@ -76,6 +76,7 @@ class Config:
     #     'kernel': 'rbf',
     #     'gamma': 'scale',
     #     'nu': 0.07,  # Between small and full
+    #     'shrinking': True,
     #     'cache_size': 20000,
     #     'verbose': False,
     #     'max_iter': -1
