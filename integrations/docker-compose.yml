@@ -1,0 +1,68 @@
+services:
+  elasticsearch:
+    image: 'docker.elastic.co/elasticsearch/elasticsearch-wolfi:9.1.5'
+    container_name: elasticsearch
+    environment:
+    - discovery.type=single-node
+    - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    - xpack.security.enabled=false
+    - xpack.security.http.ssl.enabled=false
+    ports:
+    - '9200:9200'
+    networks:
+    - elastic
+    volumes:
+    - 'esdata:/usr/share/elasticsearch/data'
+
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:9.1.5
+    container_name: kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+    networks:
+      - elastic
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:9.1.5
+    container_name: logstash
+    ports:
+      - "6000:6000"
+      - "9600:9600"
+    volumes:
+      - ./logstash/pipeline:/usr/share/logstash/pipeline
+    depends_on:
+      - elasticsearch
+    networks:
+      - elastic
+
+  filebeat:
+    user: root
+    image: docker.elastic.co/beats/filebeat:9.1.5
+    container_name: filebeat
+    volumes:
+      # mount /var/log from host system, and share with container.  
+      #- /var/log/:/var/log/
+      # filebeat config file lives on the host
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml
+      # allow the suricata filebeat module to be customized, and share with filebeat
+      - ./filebeat/modules/suricata/suricata.yml:/usr/share/filebeat/modules.d/suricata.yml
+      - ./suricata/logs/:/var/log/suricata/
+      
+    restart: on-failure
+    networks:
+      - elastic
+
+
+
+volumes:
+  esdata:
+    driver: local
+
+networks:
+  elastic:
+    driver: bridge
