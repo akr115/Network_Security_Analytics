@@ -1,7 +1,8 @@
 %YAML 1.1
 ---
 # Suricata configuration for offline pcap processing
-
+var:
+  HOME_NET: any
 # Use default logging directory
 default-log-dir: /var/log/suricata
 
