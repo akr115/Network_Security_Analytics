@@ -19,16 +19,16 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
-COPY backend_model/requirements.txt .
+COPY ./requirements.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
-COPY backend_model/main.py .
+COPY ./main.py .
 
 # Copy the model directory from backend_model/production_model
-COPY backend_model/production_model/ /app/model/
+COPY ./production_model/ /app/model/
 
 # Create a non-root user for security
 RUN useradd -m -u 1000 apiuser && \

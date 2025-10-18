@@ -35,7 +35,7 @@ services:
       - "6000:6000"
       - "9600:9600"
     volumes:
-      - ./logstash/pipeline:/usr/share/logstash/pipeline
+      - ./integrations/logstash/pipeline:/usr/share/logstash/pipeline
     depends_on:
       - elasticsearch
     networks:
@@ -49,25 +49,46 @@ services:
       # mount /var/log from host system, and share with container.  
       #- /var/log/:/var/log/
       # filebeat config file lives on the host
-      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml
+      - ./integrations/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml
       # allow the suricata filebeat module to be customized, and share with filebeat
-      - ./filebeat/modules/suricata/suricata.yml:/usr/share/filebeat/modules.d/suricata.yml
-      - ./suricata/logs/:/var/log/suricata/
-      
+      - ./integrations/filebeat/modules/suricata/suricata.yml:/usr/share/filebeat/modules.d/suricata.yml
+      - ./integrations/suricata/logs/:/var/log/suricata/
+
     restart: on-failure
     networks:
       - elastic
+
 # Suricata service, network IDS/IPS to monitor network traffic and generate logs
   suricata:
     build: 
-      context: ./suricata
+      context: ./integrations/suricata
       dockerfile: ./Dockerfile
     volumes:
-      - ./suricata/logs:/var/log/suricata
-      - ./suricata/suricata.yaml:/etc/suricata/suricata.yaml:ro
+      - ./integrations/suricata/logs:/var/log/suricata
+      - ./integrations/suricata/suricata.yaml:/etc/suricata/suricata.yaml:ro
     networks:
       - elastic
 
+  ocsvm-api:
+    build:
+      context: ./backend_model
+      dockerfile: ./Dockerfile
+    container_name: ocsvm-intrusion-detection-api
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - MODEL_DIR=/app/model
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - elastic
+      
 volumes:
   esdata:
     driver: local
