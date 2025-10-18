@@ -57,7 +57,15 @@ services:
     networks:
       - elastic
 
-
+  suricata:
+    build: 
+      context: ./suricata
+      dockerfile: ./Dockerfile
+    volumes:
+      - ./suricata/logs:/var/log/suricata
+      - ./suricata/suricata.yaml:/etc/suricata/suricata.yaml:ro
+    networks:
+      - elastic
 
 volumes:
   esdata:
