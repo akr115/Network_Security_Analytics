@@ -1,0 +1,77 @@
+services:
+  # Elasticsearch service, backend to consume all logs and provide search capabilities and alerts
+  elasticsearch:
+    image: 'docker.elastic.co/elasticsearch/elasticsearch-wolfi:9.1.5'
+    container_name: elasticsearch
+    environment:
+    - discovery.type=single-node
+    - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    - xpack.security.enabled=false
+    - xpack.security.http.ssl.enabled=false
+    ports:
+    - '9200:9200'
+    networks:
+    - elastic
+    volumes:
+    - 'esdata:/usr/share/elasticsearch/data'
+
+# Kibana service, web interface to visualize and explore logs stored in Elasticsearch
+  kibana:
+    image: docker.elastic.co/kibana/kibana:9.1.5
+    container_name: kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+    networks:
+      - elastic
+# Logstash service, to process and forward logs from Filebeat to Elasticsearch
+  logstash:
+    image: docker.elastic.co/logstash/logstash:9.1.5
+    container_name: logstash
+    ports:
+      - "6000:6000"
+      - "9600:9600"
+    volumes:
+      - ./logstash/pipeline:/usr/share/logstash/pipeline
+    depends_on:
+      - elasticsearch
+    networks:
+      - elastic
+# Filebeat service, to collect and forward logs to Logstash
+  filebeat:
+    user: root
+    image: docker.elastic.co/beats/filebeat:9.1.5
+    container_name: filebeat
+    volumes:
+      # mount /var/log from host system, and share with container.  
+      #- /var/log/:/var/log/
+      # filebeat config file lives on the host
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml
+      # allow the suricata filebeat module to be customized, and share with filebeat
+      - ./filebeat/modules/suricata/suricata.yml:/usr/share/filebeat/modules.d/suricata.yml
+      - ./suricata/logs/:/var/log/suricata/
+      
+    restart: on-failure
+    networks:
+      - elastic
+# Suricata service, network IDS/IPS to monitor network traffic and generate logs
+  suricata:
+    build: 
+      context: ./suricata
+      dockerfile: ./Dockerfile
+    volumes:
+      - ./suricata/logs:/var/log/suricata
+      - ./suricata/suricata.yaml:/etc/suricata/suricata.yaml:ro
+    networks:
+      - elastic
+
+volumes:
+  esdata:
+    driver: local
+
+networks:
+  elastic:
+    driver: bridge

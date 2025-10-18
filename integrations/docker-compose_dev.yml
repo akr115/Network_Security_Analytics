@@ -1,0 +1,112 @@
+# build an elastic stack (elasticsearch, kibana, filebeat) 
+version: '2'
+services:
+# Elasticsearch node#1
+  es01:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.7.1
+    container_name: es01
+    environment:
+      - node.name=es01
+      - cluster.name=es-docker-cluster
+      - discovery.seed_hosts=es01,es02
+      - cluster.initial_master_nodes=es01
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      # store elasticsearch data on the host
+      - data01:/usr/share/elasticsearch/data
+      # get the elasticsearch config file from the host
+      - ./elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml
+    ports:
+      - 9200:9200
+    networks:
+      - elastic
+
+
+# ElasticSearch node#2
+  es02:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.7.1
+    container_name: es02
+    environment:
+      - node.name=es02
+      - cluster.name=es-docker-cluster
+      - discovery.seed_hosts=es01,es02
+      - cluster.initial_master_nodes=es01
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      # store elasticsearch data on the host
+      - data02:/usr/share/elasticsearch/data
+      # get the elasticsearch config file from the host
+      - ./elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml
+    ports:
+    - 9201:9200
+    networks:
+    - elastic
+      
+ 
+
+  # filebeat config 
+  filebeat:
+    user: root
+    networks:
+      - elastic
+    image: docker.elastic.co/beats/filebeat:7.7.1
+    volumes:
+      # mount /var/log from host system, and share with container.  
+      #- /var/log/:/var/log/
+      # filebeat config file lives on the host
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml
+      # allow the suricata filebeat module to be customized, and share with filebeat
+      - ./filebeat/modules/suricata/suricata.yml:/usr/share/filebeat/modules.d/suricata.yml
+      - ./suricata/logs/:/var/log/suricata/
+      
+    restart: on-failure
+
+
+
+# Suricata IDS
+  suricata:
+    image: docker.io/cifranix/suricata:4.1.2
+    container_name: suricata
+    volumes:
+      # A directory for logs
+      - ./suricata/logs/:/var/log/suricata/
+      # configuration file directory
+      - ./suricata/etc/:/etc/suricata/
+      # rule file
+      - ./suricata/rules/suricata.rules:/var/lib/suricata/rules/suricata.rules
+    network_mode: host
+    # the SURICATA_INT variable is stored in the '.env' file within the repo
+    command: bash -c "echo ${SURICATA_INT} && /usr/bin/suricata -c /etc/suricata/suricata.yaml -i ${SURICATA_INT} --init-errors-fatal"
+
+
+# start kibana 
+  kibana:
+    #image: docker.elastic.co/kibana/kibana:7.7.1
+    image: docker.elastic.co/kibana/kibana:7.6.2
+    volumes:
+      - ./kibana/config/kibana.yml:/usr/share/kibana/config/kibana.yml
+     # - ./kibana/plugins:/usr/share/kibana/x-pack/plugins/
+    networks:
+      - elastic
+    ports:
+      - 5601:5601
+
+volumes:
+  data01:
+    driver: local
+  data02:
+    driver: local
+
+networks:
+  elastic:
+    driver: bridge
