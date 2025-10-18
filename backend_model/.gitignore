@@ -67,6 +67,8 @@ logs/
 
 # Model files (loaded from Train directory)
 *.pkl
+# allow production_model .pkl files to be tracked (they are handled via .gitattributes and git-lfs)
+!production_model/*.pkl
 model/
 
 # Temporary files
