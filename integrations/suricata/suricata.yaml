@@ -4,7 +4,9 @@
 # ========== BASIC VARIABLES ==========
 vars:
   address-groups:
-    HOME_NET: "any"
+    # Internal private ranges used in the dataset
+    HOME_NET: "[192.168.10.0/24, 172.16.0.0/16, 10.0.0.0/8, 205.174.165.68]"
+    # Everything that's not HOME_NET
     EXTERNAL_NET: "!$HOME_NET"
 
 # ========== RUNMODE ==========
