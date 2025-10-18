@@ -21,9 +21,9 @@ warnings.filterwarnings('ignore')
 
 # Configuration
 class Config:
-    # For local development, use relative path to Train directory
+    # For local development, use production_model directory
     # For Docker, model is copied to /app/model/
-    MODEL_DIR = os.getenv("MODEL_DIR", "../Train/out/ocsvm_model_20250928_215630")
+    MODEL_DIR = os.getenv("MODEL_DIR", "production_model")
     MODEL_NAME = "ocsvm_model.pkl"
     SCALER_NAME = "feature_scaler.pkl"
     FEATURE_NAMES_FILE = "feature_names.pkl"
@@ -163,9 +163,14 @@ class ModelManager:
             with open(model_path / Config.FEATURE_NAMES_FILE, 'rb') as f:
                 self.feature_names = pickle.load(f)
             
-            # Load config
+            # Load config from pickle (may not have all params)
             with open(model_path / Config.CONFIG_FILE, 'rb') as f:
                 self.config = pickle.load(f)
+            
+            # Parse model_summary.txt for accurate parameters
+            summary_file = model_path / "model_summary.txt"
+            if summary_file.exists():
+                self.config.update(self._parse_model_summary(summary_file))
             
             # Initialize preprocessor
             self.preprocessor = DataPreprocessor(self.feature_names)
@@ -176,6 +181,68 @@ class ModelManager:
             
         except Exception as e:
             raise RuntimeError(f"Failed to load model: {str(e)}")
+    
+    def _parse_model_summary(self, summary_file: Path) -> Dict[str, Any]:
+        """Parse model_summary.txt to extract model parameters"""
+        params = {}
+        try:
+            with open(summary_file, 'r') as f:
+                lines = f.readlines()
+                
+            in_params_section = False
+            in_metrics_section = False
+            
+            for line in lines:
+                line = line.strip()
+                
+                # Detect sections
+                if "Model Parameters:" in line:
+                    in_params_section = True
+                    in_metrics_section = False
+                    continue
+                elif "Performance Metrics:" in line:
+                    in_params_section = False
+                    in_metrics_section = True
+                    continue
+                elif line.startswith("=="):
+                    continue
+                
+                # Parse parameters
+                if in_params_section and ':' in line:
+                    key, value = line.split(':', 1)
+                    key = key.strip()
+                    value = value.strip()
+                    
+                    # Convert values to appropriate types
+                    if value.lower() == 'true':
+                        params[key] = True
+                    elif value.lower() == 'false':
+                        params[key] = False
+                    elif value.isdigit():
+                        params[key] = int(value)
+                    else:
+                        try:
+                            params[key] = float(value)
+                        except ValueError:
+                            params[key] = value
+                
+                # Parse metrics
+                if in_metrics_section and ':' in line:
+                    key, value = line.split(':', 1)
+                    key = key.strip()
+                    value = value.strip()
+                    
+                    try:
+                        params[key] = float(value)
+                    except ValueError:
+                        params[key] = value
+            
+            print(f"✓ Parsed {len(params)} parameters from model_summary.txt")
+            
+        except Exception as e:
+            print(f"⚠️  Warning: Could not parse model_summary.txt: {str(e)}")
+        
+        return params
     
     def predict_single(self, data: Dict[str, float]) -> PredictionOutput:
         """Make prediction for a single network flow"""
@@ -254,7 +321,7 @@ class ModelManager:
         if not self.model_loaded:
             return {}
         
-        return {
+        info = {
             "model_type": "One-Class SVM",
             "kernel": self.config.get('kernel', 'N/A'),
             "nu": self.config.get('nu', 'N/A'),
@@ -262,6 +329,25 @@ class ModelManager:
             "n_features": len(self.feature_names),
             "features": self.feature_names[:10] + ["..."] if len(self.feature_names) > 10 else self.feature_names
         }
+        
+        # Add additional parameters if available
+        if 'shrinking' in self.config:
+            info['shrinking'] = self.config['shrinking']
+        if 'cache_size' in self.config:
+            info['cache_size'] = self.config['cache_size']
+        if 'max_iter' in self.config:
+            info['max_iter'] = self.config['max_iter']
+        
+        # Add performance metrics if available
+        metrics = {}
+        for metric in ['Accuracy', 'Precision', 'Recall', 'F1_score']:
+            if metric in self.config:
+                metrics[metric] = self.config[metric]
+        
+        if metrics:
+            info['performance_metrics'] = metrics
+        
+        return info
 
 
 # Initialize FastAPI app

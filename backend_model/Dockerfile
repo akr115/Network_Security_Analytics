@@ -19,19 +19,16 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
-COPY requirements.txt .
+COPY backend_model/requirements.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
-COPY main.py .
+COPY backend_model/main.py .
 
-# Note: Model directory should be copied from parent directory during build
-# Build command should be run from Network_Security_Analytics directory:
-# docker build -f backend_model/Dockerfile -t ocsvm-api:latest .
-# Then the COPY command below will work correctly
-COPY Train/out/ocsvm_model_20250928_215630 /app/model/
+# Copy the model directory from backend_model/production_model
+COPY backend_model/production_model/ /app/model/
 
 # Create a non-root user for security
 RUN useradd -m -u 1000 apiuser && \

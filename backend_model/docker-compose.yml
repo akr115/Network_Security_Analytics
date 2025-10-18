@@ -1,15 +1,14 @@
-version: '3.8'
-
 services:
   ocsvm-api:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: backend_model/Dockerfile
     container_name: ocsvm-intrusion-detection-api
     ports:
       - "8000:8000"
     environment:
       - PYTHONUNBUFFERED=1
+      - MODEL_DIR=/app/model
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')"]
