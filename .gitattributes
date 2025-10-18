@@ -1,0 +1,2 @@
+backend_model/**/*.pkl filter=lfs diff=lfs merge=lfs -text
+backend_model/**/*.txt filter=lfs diff=lfs merge=lfs -text

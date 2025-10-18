@@ -1,0 +1,62 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+
+# Notebooks
+*.ipynb
+.ipynb_checkpoints/
+
+# Documentation
+*.md
+docs/
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Data files (not needed in Docker image)
+*.csv
+*.parquet
+*.xlsx
+*.xls
+
+# Model outputs (we only need the specific model)
+out/
+!out/ocsvm_model_20250928_215630/
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+temp/
