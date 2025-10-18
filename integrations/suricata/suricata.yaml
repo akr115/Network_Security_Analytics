@@ -1,85 +1,44 @@
 %YAML 1.1
 ---
-# Suricata configuration for offline pcap processing
-var:
-  HOME_NET: any
-# Use default logging directory
-default-log-dir: /var/log/suricata
 
-# Runmode auto-selects single-threaded vs multi-threaded (default: autofp)
-runmode: autofp
+# ========== BASIC VARIABLES ==========
+vars:
+  address-groups:
+    HOME_NET: "any"
+    EXTERNAL_NET: "!$HOME_NET"
 
-# Capture method: pcap-file (for reading .pcap files)
+# ========== RUNMODE ==========
+runmode: autofp  # automatic flow-based multithreading
+
+# ========== INPUT SOURCE ==========
 pcap:
-  # Buffer size in MB
-  buffer-size: 64
-  checksum-checks: auto
+  - interface: pcap-file
+    checksum-checks: auto
 
-# Input source (pcap file provided at runtime with -r)
-pcap-file:
-  checksum-checks: auto
-
-# Default rule files location
+# ========== RULES ==========
 default-rule-path: /etc/suricata/rules
 rule-files:
-  - suricata.rules
+  - suricata.rules  # can be empty if you just want flow/stat logs
 
-# Logging configuration
+# ========== OUTPUTS ==========
 outputs:
-  # Unified2 logging (disabled)
-  - unified2-alert:
-      enabled: no
-
-  # EVE (JSON) log
   - eve-log:
       enabled: yes
       filetype: regular
       filename: eve.json
       types:
-        - alert:
-            payload: yes
-            payload-printable: yes
-            packet: yes
-            metadata: yes
-            http: yes
-            tls: yes
-            ssh: yes
-            smtp: yes
-        - dns:
-            query: yes
-            answer: yes
-        - http:
-            extended: yes
-        - tls:
-            extended: yes
-        - ssh
+        - alert
         - flow
+        - http
+        - dns
+        - tls
         - stats
-        - metadata
-        - files:
-            force-magic: yes
-            force-md5: yes
-        - anomaly
 
-  # Regular text-based alert log
   - fast:
-      enabled: yes
-      filename: fast.log
-      append: yes
+      enabled: no
 
-# Performance tuning (optional, safe defaults)
-threading:
-  set-cpu-affinity: no
-  detect-thread-ratio: 1.0
-
-# Disable GeoIP (optional)
-geoip:
-  enabled: no
-
-# Disable outputs not needed for basic testing
 logging:
   default-log-level: info
-  default-output-filter:
   outputs:
     - console:
         enabled: yes
