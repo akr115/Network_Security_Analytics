@@ -66,6 +66,7 @@ services:
     volumes:
       - ./integrations/suricata/logs:/var/log/suricata
       - ./integrations/suricata/suricata.yaml:/etc/suricata/suricata.yaml:ro
+      - ./integrations/suricata/example.pcap:/example.pcap
     networks:
       - elastic
 

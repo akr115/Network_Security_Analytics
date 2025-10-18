@@ -19,7 +19,7 @@ COPY suricata.yaml /etc/suricata/suricata.yaml
 # COPY http_small_file.pcap http_small_file.pcap
 # COPY tcp_file_downloads.pcap tcp_file_downloads.pcap
 # COPY pipekat-poshc2.pcap pipekat-poshc2.pcap
-COPY example.pcap example.pcap
+# COPY example.pcap example.pcap
 
 VOLUME ["/var/log/suricata"]
 
