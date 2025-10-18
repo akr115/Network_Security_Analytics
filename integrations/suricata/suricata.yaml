@@ -1,46 +1,76 @@
 %YAML 1.1
 ---
 
-# ========== BASIC VARIABLES ==========
+# Minimal suricata.yaml for CICIDS2017 PCAP processing.
+# You will place this file in the same directory as your docker-compose.yml.
+
+# Use a specific version for clarity, though it is not mandatory.
+suricata-version: "7.0"
+
+# Set a basic home and external network.
+# You can adjust these to better reflect the CICIDS2017 network topology if known.
 vars:
   address-groups:
-    # Internal private ranges used in the dataset
-    HOME_NET: "[192.168.10.0/24, 172.16.0.0/16, 10.0.0.0/8, 205.174.165.68]"
-    # Everything that's not HOME_NET
-    EXTERNAL_NET: "!$HOME_NET"
+    HOME_NET: "[192.168.0.0/16,10.0.0.0/8,172.16.0.0/12]"
+    EXTERNAL_NET: "any"
 
-# ========== RUNMODE ==========
-runmode: autofp  # automatic flow-based multithreading
-
-# ========== INPUT SOURCE ==========
-pcap:
-  - interface: pcap-file
-    checksum-checks: auto
-
-# ========== RULES ==========
-default-rule-path: /etc/suricata/rules
-rule-files:
-  - suricata.rules  # can be empty if you just want flow/stat logs
-
-# ========== OUTPUTS ==========
+# Output configuration
 outputs:
+  # EVE JSON output is the firehose of events.
   - eve-log:
       enabled: yes
       filetype: regular
       filename: eve.json
+      # Enable a wide range of event types for maximum detail.
       types:
         - alert
         - flow
         - http
-        - dns
         - tls
-        - stats
+        - dns
+        - fileinfo
 
-  - fast:
-      enabled: no
+# Disable detection rules if you only need the protocol logs.
+# If you want alerts from rules, uncomment the `rule-files` section below.
+detect:
+  # Disables the default rule path, preventing Suricata from loading
+  # the potentially large default rule set for offline analysis.
+  default-rule-path: /dev/null
+  rule-files: []
+  
+# Application layer settings
+app-layer:
+  protocols:
+    tls:
+      # Capture certificates for richer TLS data
+      cert-log-fingerprints: yes
 
-logging:
-  default-log-level: info
-  outputs:
-    - console:
-        enabled: yes
+# Stream engine settings
+stream:
+  # For offline PCAP processing, it's often best to disable strict checksum validation.
+  # This matches the `-k none` flag used in the docker-compose.yml.
+  checksum-validation: no
+
+# Decoder event logging
+decoder-events:
+  enabled: no
+
+# Stream event logging
+stream-events:
+  enabled: no
+
+# Flow logging
+flow:
+  memcap: 32mb
+  hash-size: 65536
+  prealloc: 1024
+  emergency-recovery: 30
+  flow-timeouts:
+    default:
+      new: 30
+      established: 300
+      closed: 10
+
+# Stats logging is useful for checking performance, but can be disabled for minimal output.
+stats:
+  enabled: no
