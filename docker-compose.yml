@@ -15,18 +15,20 @@ services:
     volumes:
     - 'esdata:/usr/share/elasticsearch/data'
 
-# # Kibana service, web interface to visualize and explore logs stored in Elasticsearch
-#   kibana:
-#     image: docker.elastic.co/kibana/kibana:9.1.5
-#     container_name: kibana
-#     environment:
-#       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
-#     ports:
-#       - "5601:5601"
-#     depends_on:
-#       - elasticsearch
-#     networks:
-#       - elastic
+# Kibana service, web interface to visualize and explore logs stored in Elasticsearch
+  kibana:
+    image: docker.elastic.co/kibana/kibana:9.1.5
+    container_name: kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+    networks:
+      - elastic
+
+      
 # Logstash service, to process and forward logs from Filebeat to Elasticsearch
   logstash:
     image: docker.elastic.co/logstash/logstash:9.1.5
