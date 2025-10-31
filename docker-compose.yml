@@ -1,32 +1,32 @@
 services:
   # Elasticsearch service, backend to consume all logs and provide search capabilities and alerts
-  elasticsearch:
-    image: 'docker.elastic.co/elasticsearch/elasticsearch-wolfi:9.1.5'
-    container_name: elasticsearch
-    environment:
-    - discovery.type=single-node
-    - ES_JAVA_OPTS=-Xms512m -Xmx512m
-    - xpack.security.enabled=false
-    - xpack.security.http.ssl.enabled=false
-    ports:
-    - '9200:9200'
-    networks:
-    - elastic
-    volumes:
-    - 'esdata:/usr/share/elasticsearch/data'
+#   elasticsearch:
+#     image: 'docker.elastic.co/elasticsearch/elasticsearch-wolfi:9.1.5'
+#     container_name: elasticsearch
+#     environment:
+#     - discovery.type=single-node
+#     - ES_JAVA_OPTS=-Xms512m -Xmx512m
+#     - xpack.security.enabled=false
+#     - xpack.security.http.ssl.enabled=false
+#     ports:
+#     - '9200:9200'
+#     networks:
+#     - elastic
+#     volumes:
+#     - 'esdata:/usr/share/elasticsearch/data'
 
-# Kibana service, web interface to visualize and explore logs stored in Elasticsearch
-  kibana:
-    image: docker.elastic.co/kibana/kibana:9.1.5
-    container_name: kibana
-    environment:
-      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
-    ports:
-      - "5601:5601"
-    depends_on:
-      - elasticsearch
-    networks:
-      - elastic
+# # Kibana service, web interface to visualize and explore logs stored in Elasticsearch
+#   kibana:
+#     image: docker.elastic.co/kibana/kibana:9.1.5
+#     container_name: kibana
+#     environment:
+#       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+#     ports:
+#       - "5601:5601"
+#     depends_on:
+#       - elasticsearch
+#     networks:
+#       - elastic
 # Logstash service, to process and forward logs from Filebeat to Elasticsearch
   logstash:
     image: docker.elastic.co/logstash/logstash:9.1.5
@@ -36,8 +36,6 @@ services:
       - "9600:9600"
     volumes:
       - ./integrations/logstash/pipeline:/usr/share/logstash/pipeline
-    depends_on:
-      - elasticsearch
     networks:
       - elastic
 # Filebeat service, to collect and forward logs to Logstash
@@ -46,49 +44,57 @@ services:
     image: docker.elastic.co/beats/filebeat:9.1.5
     container_name: filebeat
     volumes:
-      # mount /var/log from host system, and share with container.  
-      #- /var/log/:/var/log/
-      # filebeat config file lives on the host
-      - ./integrations/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml
-      # allow the suricata filebeat module to be customized, and share with filebeat
-      - ./integrations/filebeat/modules/suricata/suricata.yml:/usr/share/filebeat/modules.d/suricata.yml
-      - ./integrations/suricata/logs/:/var/log/suricata/
+    - ./integrations/flows/:/usr/share/filebeat/flows/
+    - ./integrations/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml
 
     restart: on-failure
     networks:
       - elastic
 
-# Suricata service, network IDS/IPS to monitor network traffic and generate logs
-  suricata:
-    build: 
-      context: ./integrations/suricata
-      dockerfile: ./Dockerfile
+
+  cicflowmeter:
+    build:
+      context: ./integrations/cicflowmeter
+      dockerfile: Dockerfile
     volumes:
-      - ./integrations/suricata/logs:/var/log/suricata
-      - ./integrations/suricata/suricata.yaml:/etc/suricata/suricata.yaml:ro
-      - ./integrations/suricata/example.pcap:/example.pcap
+      - ./integrations/pcaps:/pcaps        # input PCAPs
+      - ./integrations/flows:/flows        # output CSVs
+    restart: "no"
     networks:
       - elastic
 
-  ocsvm-api:
-    build:
-      context: ./backend_model
-      dockerfile: ./Dockerfile
-    container_name: ocsvm-intrusion-detection-api
-    ports:
-      - "8000:8000"
-    environment:
-      - PYTHONUNBUFFERED=1
-      - MODEL_DIR=/app/model
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
-    networks:
-      - elastic
+
+# Suricata service, network IDS/IPS to monitor network traffic and generate logs
+  # suricata:
+  #   build: 
+  #     context: ./integrations/suricata
+  #     dockerfile: ./Dockerfile
+  #   volumes:
+  #     - ./integrations/suricata/logs:/var/log/suricata
+  #     - ./integrations/suricata/suricata.yaml:/etc/suricata/suricata.yaml:ro
+  #     - ./integrations/suricata/example.pcap:/example.pcap
+  #   networks:
+  #     - elastic
+
+  # ocsvm-api:
+  #   build:
+  #     context: ./backend_model
+  #     dockerfile: ./Dockerfile
+  #   container_name: ocsvm-intrusion-detection-api
+  #   ports:
+  #     - "8000:8000"
+  #   environment:
+  #     - PYTHONUNBUFFERED=1
+  #     - MODEL_DIR=/app/model
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 10s
+  #   networks:
+  #     - elastic
       
 volumes:
   esdata:

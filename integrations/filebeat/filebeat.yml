@@ -3,23 +3,44 @@ logging.to_stderr: true
 logging.to_syslog: false
 logging.to_files: false
 
+# filebeat.inputs:
+#   - type: filestream
+#     id: suricata-eve
+#     enabled: true
+#     paths:
+#       - /var/log/suricata/eve.json
+#     parsers:
+#       - ndjson:
+#           target: ""
+
 filebeat.inputs:
   - type: filestream
-    id: suricata-eve
+    id: cicflowmeter-flows
     enabled: true
     paths:
-      - /var/log/suricata/eve.json
-    parsers:
-      - ndjson:
-          target: ""
+      - /usr/share/filebeat/flows/*.csv
+    ignore_older: 0
+    close_eof: true
+    start_position: beginning
+
+processors:
+  - decode_csv_fields:
+      fields:
+        message: decoded.csv      # source field -> target field
+      separator: ","              # CSV separator
+      ignore_missing: false       # fail if the field is missing
+      overwrite_keys: true        # overwrite target field if it exists
+      trim_leading_space: false   # do not trim spaces
+      fail_on_error: true         # revert changes on error
+
 
 # Optional: drop all events that are not flow records
-processors:
-  - drop_event:
-      when:
-        not:
-          equals:
-            event_type: "flow"
+# processors:
+#   - drop_event:
+#       when:
+#         not:
+#           equals:
+#             event_type: "flow"
 
 # Send to Logstash
 output.logstash:
