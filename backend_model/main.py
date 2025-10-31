@@ -473,6 +473,220 @@ async def get_model_info():
     
     return model_manager.get_model_info()
 
+from typing import List
+
+class CSVFlowInput(BaseModel):
+    """
+    Input model for CSV array format network flow.
+    Expects data in the order of the first CSV format.
+    """
+    csv: List = Field(
+        ...,
+        description="Array of values in CSV order",
+        min_items=82  # Total number of fields in first CSV
+    )
+    
+    @validator('csv')
+    def validate_csv_length(cls, v):
+        if len(v) != 82:
+            raise ValueError(f"CSV array must have exactly 82 elements, got {len(v)}")
+        return v
+
+
+# Mapping from first CSV column names to second CSV column names (model features)
+CSV_TO_FEATURE_MAPPING = {
+    # First CSV column name -> Second CSV column name (used in training)
+    'dst_port': 'Destination Port',
+    'flow_duration': 'Flow Duration',
+    'tot_fwd_pkts': 'Total Fwd Packets',
+    'tot_bwd_pkts': 'Total Backward Packets',
+    'totlen_fwd_pkts': 'Total Length of Fwd Packets',
+    'totlen_bwd_pkts': 'Total Length of Bwd Packets',
+    'fwd_pkt_len_max': 'Fwd Packet Length Max',
+    'fwd_pkt_len_min': 'Fwd Packet Length Min',
+    'fwd_pkt_len_mean': 'Fwd Packet Length Mean',
+    'fwd_pkt_len_std': 'Fwd Packet Length Std',
+    'bwd_pkt_len_max': 'Bwd Packet Length Max',
+    'bwd_pkt_len_min': 'Bwd Packet Length Min',
+    'bwd_pkt_len_mean': 'Bwd Packet Length Mean',
+    'bwd_pkt_len_std': 'Bwd Packet Length Std',
+    'flow_byts_s': 'Flow Bytes/s',
+    'flow_pkts_s': 'Flow Packets/s',
+    'flow_iat_mean': 'Flow IAT Mean',
+    'flow_iat_std': 'Flow IAT Std',
+    'flow_iat_max': 'Flow IAT Max',
+    'flow_iat_min': 'Flow IAT Min',
+    'fwd_iat_tot': 'Fwd IAT Total',
+    'fwd_iat_mean': 'Fwd IAT Mean',
+    'fwd_iat_std': 'Fwd IAT Std',
+    'fwd_iat_max': 'Fwd IAT Max',
+    'fwd_iat_min': 'Fwd IAT Min',
+    'bwd_iat_tot': 'Bwd IAT Total',
+    'bwd_iat_mean': 'Bwd IAT Mean',
+    'bwd_iat_std': 'Bwd IAT Std',
+    'bwd_iat_max': 'Bwd IAT Max',
+    'bwd_iat_min': 'Bwd IAT Min',
+    'fwd_psh_flags': 'Fwd PSH Flags',
+    'bwd_psh_flags': 'Bwd PSH Flags',
+    'fwd_urg_flags': 'Fwd URG Flags',
+    'bwd_urg_flags': 'Bwd URG Flags',
+    'fwd_header_len': 'Fwd Header Length',
+    'bwd_header_len': 'Bwd Header Length',
+    'fwd_pkts_s': 'Fwd Packets/s',
+    'bwd_pkts_s': 'Bwd Packets/s',
+    'pkt_len_min': 'Min Packet Length',
+    'pkt_len_max': 'Max Packet Length',
+    'pkt_len_mean': 'Packet Length Mean',
+    'pkt_len_std': 'Packet Length Std',
+    'pkt_len_var': 'Packet Length Variance',
+    'fin_flag_cnt': 'FIN Flag Count',
+    'syn_flag_cnt': 'SYN Flag Count',
+    'rst_flag_cnt': 'RST Flag Count',
+    'psh_flag_cnt': 'PSH Flag Count',
+    'ack_flag_cnt': 'ACK Flag Count',
+    'urg_flag_cnt': 'URG Flag Count',
+    'cwr_flag_count': 'CWE Flag Count',
+    'ece_flag_cnt': 'ECE Flag Count',
+    'down_up_ratio': 'Down/Up Ratio',
+    'pkt_size_avg': 'Average Packet Size',
+    'fwd_seg_size_avg': 'Avg Fwd Segment Size',
+    'bwd_seg_size_avg': 'Avg Bwd Segment Size',
+    'fwd_byts_b_avg': 'Fwd Avg Bytes/Bulk',
+    'fwd_pkts_b_avg': 'Fwd Avg Packets/Bulk',
+    'fwd_blk_rate_avg': 'Fwd Avg Bulk Rate',
+    'bwd_byts_b_avg': 'Bwd Avg Bytes/Bulk',
+    'bwd_pkts_b_avg': 'Bwd Avg Packets/Bulk',
+    'bwd_blk_rate_avg': 'Bwd Avg Bulk Rate',
+    'subflow_fwd_pkts': 'Subflow Fwd Packets',
+    'subflow_fwd_byts': 'Subflow Fwd Bytes',
+    'subflow_bwd_pkts': 'Subflow Bwd Packets',
+    'subflow_bwd_byts': 'Subflow Bwd Bytes',
+    'init_fwd_win_byts': 'Init_Win_bytes_forward',
+    'init_bwd_win_byts': 'Init_Win_bytes_backward',
+    'fwd_act_data_pkts': 'act_data_pkt_fwd',
+    'fwd_seg_size_min': 'min_seg_size_forward',
+    'active_mean': 'Active Mean',
+    'active_std': 'Active Std',
+    'active_max': 'Active Max',
+    'active_min': 'Active Min',
+    'idle_mean': 'Idle Mean',
+    'idle_std': 'Idle Std',
+    'idle_max': 'Idle Max',
+    'idle_min': 'Idle Min',
+}
+
+# Column order in the incoming CSV array
+CSV_COLUMN_ORDER = [
+    'src_ip', 'dst_ip', 'src_port', 'dst_port', 'protocol', 'timestamp',
+    'flow_duration', 'flow_byts_s', 'flow_pkts_s', 'fwd_pkts_s', 'bwd_pkts_s',
+    'tot_fwd_pkts', 'tot_bwd_pkts', 'totlen_fwd_pkts', 'totlen_bwd_pkts',
+    'fwd_pkt_len_max', 'fwd_pkt_len_min', 'fwd_pkt_len_mean', 'fwd_pkt_len_std',
+    'bwd_pkt_len_max', 'bwd_pkt_len_min', 'bwd_pkt_len_mean', 'bwd_pkt_len_std',
+    'pkt_len_max', 'pkt_len_min', 'pkt_len_mean', 'pkt_len_std', 'pkt_len_var',
+    'fwd_header_len', 'bwd_header_len', 'fwd_seg_size_min', 'fwd_act_data_pkts',
+    'flow_iat_mean', 'flow_iat_max', 'flow_iat_min', 'flow_iat_std',
+    'fwd_iat_tot', 'fwd_iat_max', 'fwd_iat_min', 'fwd_iat_mean', 'fwd_iat_std',
+    'bwd_iat_tot', 'bwd_iat_max', 'bwd_iat_min', 'bwd_iat_mean', 'bwd_iat_std',
+    'fwd_psh_flags', 'bwd_psh_flags', 'fwd_urg_flags', 'bwd_urg_flags',
+    'fin_flag_cnt', 'syn_flag_cnt', 'rst_flag_cnt', 'psh_flag_cnt',
+    'ack_flag_cnt', 'urg_flag_cnt', 'ece_flag_cnt', 'down_up_ratio',
+    'pkt_size_avg', 'init_fwd_win_byts', 'init_bwd_win_byts',
+    'active_max', 'active_min', 'active_mean', 'active_std',
+    'idle_max', 'idle_min', 'idle_mean', 'idle_std',
+    'fwd_byts_b_avg', 'fwd_pkts_b_avg', 'bwd_byts_b_avg', 'bwd_pkts_b_avg',
+    'fwd_blk_rate_avg', 'bwd_blk_rate_avg', 'fwd_seg_size_avg', 'bwd_seg_size_avg',
+    'cwr_flag_count', 'subflow_fwd_pkts', 'subflow_bwd_pkts',
+    'subflow_fwd_byts', 'subflow_bwd_byts'
+]
+
+
+def csv_array_to_feature_dict(csv_array: List) -> Dict[str, float]:
+    """
+    Convert CSV array to feature dictionary with model's expected column names.
+    Excludes columns that should be dropped (src_ip, dst_ip, src_port, protocol, timestamp).
+    """
+    # Create dictionary from CSV array
+    csv_dict = {}
+    for i, col_name in enumerate(CSV_COLUMN_ORDER):
+        if i < len(csv_array):
+            csv_dict[col_name] = csv_array[i]
+    
+    # Map to model feature names, excluding dropped columns
+    feature_dict = {}
+    columns_to_exclude = ['src_ip', 'dst_ip', 'src_port', 'protocol', 'timestamp']
+    
+    for csv_col, model_col in CSV_TO_FEATURE_MAPPING.items():
+        if csv_col in csv_dict and csv_col not in columns_to_exclude:
+            try:
+                # Convert to float
+                feature_dict[model_col] = float(csv_dict[csv_col])
+            except (ValueError, TypeError):
+                # If conversion fails, use 0.0 as default
+                feature_dict[model_col] = 0.0
+    
+    return feature_dict
+
+
+@app.post("/predict/csv", response_model=PredictionOutput)
+async def predict_from_csv(input_data: CSVFlowInput):
+    """
+    Predict if a network flow is benign or an attack from CSV array format.
+    
+    Expects data in the order:
+    src_ip, dst_ip, src_port, dst_port, protocol, timestamp, flow_duration, 
+    flow_byts_s, flow_pkts_s, fwd_pkts_s, bwd_pkts_s, tot_fwd_pkts, 
+    tot_bwd_pkts, totlen_fwd_pkts, totlen_bwd_pkts, ... (82 fields total)
+    """
+    try:
+        # Convert CSV array to feature dictionary
+        feature_dict = csv_array_to_feature_dict(input_data.csv)
+        
+        # Make prediction using existing model
+        result = model_manager.predict_single(feature_dict)
+        return result
+        
+    except RuntimeError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Prediction failed: {str(e)}"
+        )
+
+
+@app.post("/predict/csv/batch", response_model=BatchPredictionOutput)
+async def predict_batch_from_csv(csv_flows: List[List]):
+    """
+    Predict multiple network flows from CSV array format.
+    
+    Expects a list of CSV arrays, each with 82 fields in the specified order.
+    """
+    try:
+        # Validate and convert all CSV arrays
+        feature_dicts = []
+        for i, csv_array in enumerate(csv_flows):
+            if len(csv_array) != 82:
+                raise ValueError(f"Flow {i}: Expected 82 fields, got {len(csv_array)}")
+            feature_dicts.append(csv_array_to_feature_dict(csv_array))
+        
+        # Make batch prediction
+        result = model_manager.predict_batch(feature_dicts)
+        return result
+        
+    except RuntimeError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Batch prediction failed: {str(e)}"
+        )
+
 
 if __name__ == "__main__":
     # Run the API server
