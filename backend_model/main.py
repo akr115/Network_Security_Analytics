@@ -605,7 +605,7 @@ async def predict_from_csv(request: Request):
     - A comma-separated string: {"csv": "192.168.10.3,192.168.10.1,61834,53,..."}
     - An array: {"csv": ["192.168.10.3", "192.168.10.1", "61834", "53", ...]}
     
-    Returns: "Benign" or "Attack"
+    Returns: {"prediction": "benign"} or {"prediction": "attack"}
     """
     try:
         # Parse the JSON body
@@ -660,8 +660,8 @@ async def predict_from_csv(request: Request):
         # Debug logging
         debug_print(f"✓ Prediction: {result.prediction} (confidence: {result.confidence:.4f})")
         
-        # Return simple string response: "Benign" or "Attack"
-        return result.prediction.capitalize()
+        # Return JSON response with lowercase prediction
+        return {"prediction": result.prediction.lower()}
         
     except HTTPException:
         raise
