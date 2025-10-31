@@ -1,10 +1,11 @@
-FROM python:3.11-slim
+FROM python:3.11
 
 WORKDIR /app
 
 # Install only what's necessary for Scapy to read PCAPs
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpcap-dev \
+    tcpdump \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy your repo
