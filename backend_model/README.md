@@ -4,12 +4,12 @@ FastAPI-based REST API for real-time network intrusion detection using a pre-tra
 
 ## Features
 
-- 🚀 **Real-time Prediction**: Classify network traffic as BENIGN or ATTACK
-- 📊 **Batch Processing**: Process multiple flows simultaneously
-- 🔍 **Model Info**: Get detailed information about the loaded model
-- 🏥 **Health Checks**: Monitor API and model status
-- 🐳 **Docker Support**: Easy deployment with Docker
-- 📚 **Interactive Docs**: Auto-generated API documentation
+-  **Real-time Prediction**: Classify network traffic as BENIGN or ATTACK
+-  **Batch Processing**: Process multiple flows simultaneously
+-  **Model Info**: Get detailed information about the loaded model
+-  **Health Checks**: Monitor API and model status
+-  **Docker Support**: Easy deployment with Docker
+-  **Interactive Docs**: Auto-generated API documentation
 
 ## Quick Start
 
@@ -248,19 +248,19 @@ print(f"Benign: {result['benign_count']}, Attacks: {result['attack_count']}")
 
 ```
 backend_model/
-├── main.py              # FastAPI application
-├── requirements.txt     # Python dependencies
-├── Dockerfile          # Docker configuration
-├── .dockerignore       # Docker build exclusions
-└── README.md           # This file
+ main.py              # FastAPI application
+ requirements.txt     # Python dependencies
+ Dockerfile          # Docker configuration
+ .dockerignore       # Docker build exclusions
+ README.md           # This file
 
 The model files are loaded from:
 ../Train/out/ocsvm_model_20250928_215630/
-├── ocsvm_model.pkl     # Trained OCSVM model
-├── feature_scaler.pkl  # StandardScaler for preprocessing
-├── feature_names.pkl   # List of feature names
-├── config.pkl          # Model configuration
-└── model_summary.txt   # Model metadata
+ ocsvm_model.pkl     # Trained OCSVM model
+ feature_scaler.pkl  # StandardScaler for preprocessing
+ feature_names.pkl   # List of feature names
+ config.pkl          # Model configuration
+ model_summary.txt   # Model metadata
 ```
 
 ## Data Preprocessing

@@ -160,8 +160,8 @@ class ModelManager:
             self.preprocessor = DataPreprocessor(self.feature_names)
             
             self.model_loaded = True
-            print(f"✓ Model loaded successfully from {model_dir}")
-            print(f"✓ Number of features: {len(self.feature_names)}")
+            print(f" Model loaded successfully from {model_dir}")
+            print(f" Number of features: {len(self.feature_names)}")
             
         except Exception as e:
             raise RuntimeError(f"Failed to load model: {str(e)}")
@@ -217,10 +217,10 @@ class ModelManager:
                     except ValueError:
                         params[key] = value
             
-            debug_print(f"✓ Parsed {len(params)} parameters from model_summary.txt")
+            debug_print(f" Parsed {len(params)} parameters from model_summary.txt")
             
         except Exception as e:
-            debug_print(f"⚠️  Warning: Could not parse model_summary.txt: {str(e)}")
+            debug_print(f"  Warning: Could not parse model_summary.txt: {str(e)}")
         
         return params
     
@@ -337,12 +337,12 @@ async def startup_event():
     """Load model on startup"""
     try:
         model_manager.load_model(Config.MODEL_DIR)
-        print("🚀 API is ready to accept requests")
+        print(" API is ready to accept requests")
         if DEBUG:
-            print("🐛 DEBUG MODE ENABLED")
+            print(" DEBUG MODE ENABLED")
     except Exception as e:
-        print(f"❌ Failed to load model: {str(e)}")
-        print("⚠️  API will start but predictions will fail until model is loaded")
+        print(f" Failed to load model: {str(e)}")
+        print("  API will start but predictions will fail until model is loaded")
 
 
 @app.get("/", response_model=Dict[str, str])
@@ -658,7 +658,7 @@ async def predict_from_csv(request: Request):
         result = model_manager.predict_single(feature_dict)
         
         # Debug logging
-        debug_print(f"✓ Prediction: {result.prediction} (confidence: {result.confidence:.4f})")
+        debug_print(f" Prediction: {result.prediction} (confidence: {result.confidence:.4f})")
         
         # Return JSON response with lowercase prediction
         return {"prediction": result.prediction.lower()}
@@ -673,7 +673,7 @@ async def predict_from_csv(request: Request):
     except Exception as e:
         import traceback
         if DEBUG:
-            debug_print(f"❌ Error in prediction: {str(e)}")
+            debug_print(f" Error in prediction: {str(e)}")
             debug_print(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

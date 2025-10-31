@@ -4,7 +4,7 @@
 
 ---
 
-## ⚡️ Version 0.4.0: Major Refactor (June 2025)
+##  Version 0.4.0: Major Refactor (June 2025)
 
 - The tool now uses a custom `FlowSession` and the `prn` callback of Scapy's `AsyncSniffer` for all flow processing, instead of relying on Scapy's `DefaultSession`/session system.
 - All flow logic, feature extraction, and output are now fully managed by the project code, not by Scapy internals.

@@ -153,11 +153,11 @@ class DataLoader:
         print("="*60)
         
         mode_info = {
-            "small": ("🔬 SMALL SAMPLE MODE", Config.SMALL_SAMPLE_SIZE, 20000),
-            "medium": ("📊 MEDIUM SAMPLE MODE", Config.MEDIUM_SAMPLE_SIZE, 80000),
-            "large": ("📈 LARGE SAMPLE MODE", Config.LARGE_SAMPLE_SIZE, 160000),
-            "hyperparam": ("🎯 HYPERPARAMETER TUNING MODE", Config.HYPERPARAM_SAMPLE_SIZE, 5000),
-            "full": ("🚀 FULL TRAINING MODE", None, None)
+            "small": (" SMALL SAMPLE MODE", Config.SMALL_SAMPLE_SIZE, 20000),
+            "medium": (" MEDIUM SAMPLE MODE", Config.MEDIUM_SAMPLE_SIZE, 80000),
+            "large": (" LARGE SAMPLE MODE", Config.LARGE_SAMPLE_SIZE, 160000),
+            "hyperparam": (" HYPERPARAMETER TUNING MODE", Config.HYPERPARAM_SAMPLE_SIZE, 5000),
+            "full": (" FULL TRAINING MODE", None, None)
         }
         
         if self.mode in mode_info:
@@ -177,17 +177,17 @@ class DataLoader:
                 
                 if rows_per_file:
                     df = pd.read_csv(file_path, nrows=rows_per_file)
-                    print(f"  → Loaded {len(df):,} rows ({self.mode} mode)")
+                    print(f"   Loaded {len(df):,} rows ({self.mode} mode)")
                 else:
                     df = pd.read_csv(file_path)
-                    print(f"  → Loaded {len(df):,} rows")
+                    print(f"   Loaded {len(df):,} rows")
                 
                 data_frames.append(df)
                 total_loaded += len(df)
                 
                 # Stop early if we have enough data
                 if target_size and total_loaded >= target_size:
-                    print(f"✓ Reached target sample size: {total_loaded:,} rows")
+                    print(f" Reached target sample size: {total_loaded:,} rows")
                     break
                     
             else:
@@ -203,8 +203,8 @@ class DataLoader:
             print(f"Sampling {target_size:,} rows from {len(combined_data):,} total rows")
             combined_data = combined_data.sample(n=target_size, random_state=Config.RANDOM_SEED)
         
-        print(f"✓ Final combined data shape: {combined_data.shape}")
-        print(f"✓ Columns: {len(combined_data.columns)}")
+        print(f" Final combined data shape: {combined_data.shape}")
+        print(f" Columns: {len(combined_data.columns)}")
         
         return combined_data
 
@@ -226,7 +226,7 @@ class DataPreprocessor:
         print("="*60)
         
         if self.mode != "full":
-            print(f"🔬 {self.mode.upper()} MODE: Quick preprocessing")
+            print(f" {self.mode.upper()} MODE: Quick preprocessing")
         
         # Clean column names and labels
         df.columns = df.columns.str.strip()
@@ -244,7 +244,7 @@ class DataPreprocessor:
         # Handle problematic values
         df = self._handle_problematic_values(df)
         
-        print(f"✓ Final cleaned data shape: {df.shape}")
+        print(f" Final cleaned data shape: {df.shape}")
         return df
     
     def _visualize_labels(self, df: pd.DataFrame) -> None:
@@ -333,7 +333,7 @@ class DataPreprocessor:
         # Update the dataframe with cleaned features
         df[feature_cols] = X
         
-        print("✓ Data cleaning completed")
+        print(" Data cleaning completed")
         return df
 
 
@@ -444,7 +444,7 @@ class HyperparameterTuner:
         print(f"Testing {total_combinations} parameter combinations")
         
         if self.quick_mode:
-            print("🚀 QUICK MODE: Testing subset of combinations")
+            print(" QUICK MODE: Testing subset of combinations")
             # Test only first 10 combinations in quick mode
             param_combinations = param_combinations[:min(10, total_combinations)]
         
@@ -493,11 +493,11 @@ class HyperparameterTuner:
                     self.best_score = score
                     self.best_params = params.copy()
                 
-                print(f"  → F1: {metrics['f1_score']:.4f}, Acc: {metrics['accuracy']:.4f}, "
+                print(f"   F1: {metrics['f1_score']:.4f}, Acc: {metrics['accuracy']:.4f}, "
                       f"Time: {training_time:.2f}s, SVs: {model.n_support_[0]:,}")
                 
             except Exception as e:
-                print(f"  → Failed: {e}")
+                print(f"   Failed: {e}")
                 continue
         
         # Print results summary
@@ -516,17 +516,17 @@ class HyperparameterTuner:
         print("="*60)
         
         if not self.results:
-            print("❌ No successful parameter combinations found!")
+            print(" No successful parameter combinations found!")
             return
         
         # Sort results by F1 score
         sorted_results = sorted(self.results, key=lambda x: x['metrics']['f1_score'], reverse=True)
         
-        print(f"✓ Tested {len(self.results)} parameter combinations")
-        print(f"🏆 Best F1 Score: {self.best_score:.4f}")
-        print(f"🎯 Best Parameters: {self.best_params}")
+        print(f" Tested {len(self.results)} parameter combinations")
+        print(f" Best F1 Score: {self.best_score:.4f}")
+        print(f" Best Parameters: {self.best_params}")
         
-        print("\n📊 Top 5 Results:")
+        print("\n Top 5 Results:")
         print("-" * 100)
         print(f"{'Rank':<4} {'F1':<6} {'Acc':<6} {'Prec':<6} {'Rec':<6} {'Time':<6} {'SVs':<8} {'Parameters'}")
         print("-" * 100)
@@ -560,14 +560,14 @@ class OCSSVMTrainer:
         print("="*60)
         
         if self.mode != "full":
-            print(f"🔬 {self.mode.upper()} MODE: Quick data preparation")
+            print(f" {self.mode.upper()} MODE: Quick data preparation")
         
         # Use custom data splitter
         X_train, X_test, y_train, y_test = self.data_splitter.split_data(df)
         
         self.feature_names = list(X_train.columns)
-        print(f"\n✓ Features: {len(self.feature_names)}")
-        print(f"✓ Custom split completed with {Config.BENIGN_TRAIN_RATIO*100:.0f}% benign for training")
+        print(f"\n Features: {len(self.feature_names)}")
+        print(f" Custom split completed with {Config.BENIGN_TRAIN_RATIO*100:.0f}% benign for training")
         
         return X_train, X_test, y_train, y_test
     
@@ -578,7 +578,7 @@ class OCSSVMTrainer:
         print("="*60)
         
         if self.mode != "full":
-            print(f"🔬 {self.mode.upper()} MODE: Fast training with limited data")
+            print(f" {self.mode.upper()} MODE: Fast training with limited data")
         
         # Limit benign samples based on mode (X_train is already all benign from custom split)
         sample_limits = {
@@ -604,7 +604,7 @@ class OCSSVMTrainer:
         
         try:
             X_train_scaled = self.scaler.fit_transform(X_train_sample)
-            print("✓ StandardScaler applied successfully")
+            print(" StandardScaler applied successfully")
         except Exception as e:
             print(f"StandardScaler failed: {e}")
             print("Falling back to RobustScaler...")
@@ -621,7 +621,7 @@ class OCSSVMTrainer:
         try:
             self.model.fit(X_train_scaled)
             training_time = datetime.now() - start_time
-            print(f"✓ Training completed successfully in {training_time.total_seconds():.2f} seconds!")
+            print(f" Training completed successfully in {training_time.total_seconds():.2f} seconds!")
             print(f"Support vectors: {self.model.n_support_[0]:,}")
             print(f"Support vector ratio: {self.model.n_support_[0] / len(X_train_scaled):.4f}")
         except Exception as e:
@@ -634,7 +634,7 @@ class OCSSVMTrainer:
             print(f"Training on reduced sample: {sample_size:,}")
             self.model.fit(X_sample)
             training_time = datetime.now() - start_time
-            print(f"✓ Training completed on reduced dataset in {training_time.total_seconds():.2f} seconds!")
+            print(f" Training completed on reduced dataset in {training_time.total_seconds():.2f} seconds!")
     
     def evaluate(self, X_test: pd.DataFrame, y_test: pd.Series) -> Dict[str, float]:
         """Evaluate the trained model"""
@@ -659,26 +659,26 @@ class OCSSVMTrainer:
         }
         
         # Print results
-        print("📊 Performance Metrics:")
+        print(" Performance Metrics:")
         for metric, value in metrics.items():
             print(f"{metric.capitalize()}: {value:.4f}")
         
         # Detailed report
-        print("\n📋 Classification Report:")
+        print("\n Classification Report:")
         print(classification_report(y_test, y_pred_binary, 
                                   target_names=['Benign', 'Attack'], 
                                   zero_division=0))
         
         # Confusion matrix
         cm = confusion_matrix(y_test, y_pred_binary)
-        print("\n🎯 Confusion Matrix:")
+        print("\n Confusion Matrix:")
         print("           Predicted")
         print("         Benign  Attack")
         print(f"Actual Benign   {cm[0,0]:6d}  {cm[0,1]:6d}")
         print(f"       Attack   {cm[1,0]:6d}  {cm[1,1]:6d}")
         
         # Additional analysis for custom split
-        print(f"\n📈 Custom Split Analysis:")
+        print(f"\n Custom Split Analysis:")
         benign_correct = cm[0,0]
         benign_total = cm[0,0] + cm[0,1]
         attack_detected = cm[1,1]
@@ -712,39 +712,39 @@ class ModelSaver:
         print("="*60)
         
         if self.mode != "full":
-            print(f"🔬 {self.mode.upper()} MODE: Saving model")
+            print(f" {self.mode.upper()} MODE: Saving model")
         
         try:
             # Save model
             model_path = self.model_dir / "ocsvm_model.pkl"
             with open(model_path, 'wb') as f:
                 pickle.dump(trainer.model, f)
-            print(f"✓ Model saved: {model_path}")
+            print(f" Model saved: {model_path}")
             
             # Save scaler
             scaler_path = self.model_dir / "feature_scaler.pkl"
             with open(scaler_path, 'wb') as f:
                 pickle.dump(trainer.scaler, f)
-            print(f"✓ Scaler saved: {scaler_path}")
+            print(f" Scaler saved: {scaler_path}")
             
             # Save feature names
             features_path = self.model_dir / "feature_names.pkl"
             with open(features_path, 'wb') as f:
                 pickle.dump(trainer.feature_names, f)
-            print(f"✓ Feature names saved: {features_path}")
+            print(f" Feature names saved: {features_path}")
             
             # Save metrics
             metrics_path = self.model_dir / "metrics.pkl"
             with open(metrics_path, 'wb') as f:
                 pickle.dump(metrics, f)
-            print(f"✓ Metrics saved: {metrics_path}")
+            print(f" Metrics saved: {metrics_path}")
             
             # Save hyperparameter results if available
             if self.hyperparam_results:
                 hyperparam_path = self.model_dir / "hyperparameter_results.pkl"
                 with open(hyperparam_path, 'wb') as f:
                     pickle.dump(self.hyperparam_results, f)
-                print(f"✓ Hyperparameter results saved: {hyperparam_path}")
+                print(f" Hyperparameter results saved: {hyperparam_path}")
                 
                 # Save hyperparameter results as JSON for easy reading
                 hyperparam_json_path = self.model_dir / "hyperparameter_results.json"
@@ -755,7 +755,7 @@ class ModelSaver:
                 }
                 with open(hyperparam_json_path, 'w') as f:
                     json.dump(json_results, f, indent=2)
-                print(f"✓ Hyperparameter summary saved: {hyperparam_json_path}")
+                print(f" Hyperparameter summary saved: {hyperparam_json_path}")
             
             # Save configuration
             config_path = self.model_dir / "config.pkl"
@@ -768,15 +768,15 @@ class ModelSaver:
             }
             with open(config_path, 'wb') as f:
                 pickle.dump(config_data, f)
-            print(f"✓ Configuration saved: {config_path}")
+            print(f" Configuration saved: {config_path}")
             
             # Create summary file
             self._create_summary(metrics, trainer.params)
             
-            print(f"\n🎉 All artifacts saved to: {self.model_dir}")
+            print(f"\n All artifacts saved to: {self.model_dir}")
             
         except Exception as e:
-            print(f"❌ Error saving model: {e}")
+            print(f" Error saving model: {e}")
     
     def _create_summary(self, metrics: Dict[str, float], params: Dict[str, Any]) -> None:
         """Create a human-readable summary file"""
@@ -827,7 +827,7 @@ class ModelSaver:
                 elif self.mode != "hyperparam":
                     f.write("For production use, consider running with full dataset.\n")
         
-        print(f"✓ Summary saved: {summary_path}")
+        print(f" Summary saved: {summary_path}")
 
 
 def parse_arguments():
@@ -854,8 +854,8 @@ Dataset Size Comparison:
   Full:   All available data
 
 Data Splitting Strategy:
-  - 80% of benign data → training (OCSVM learns normal behavior)
-  - 20% of benign data + ALL attack data → testing (realistic evaluation)
+  - 80% of benign data  training (OCSVM learns normal behavior)
+  - 20% of benign data + ALL attack data  testing (realistic evaluation)
         """
     )
     
@@ -929,17 +929,17 @@ def main():
         mode = "full"
         mode_desc = "FULL TRAINING"
     
-    print(f"🚀 Starting OCSVM Intrusion Detection Training Pipeline")
-    print(f"📋 Mode: {mode_desc}")
+    print(f" Starting OCSVM Intrusion Detection Training Pipeline")
+    print(f" Mode: {mode_desc}")
     if mode == "large":
-        print(f"   📈 Large mode: 2x medium size ({Config.LARGE_SAMPLE_SIZE:,} samples)")
-    print(f"📁 Data directory: {Config.DATA_DIR}")
-    print(f"📁 Output directory: {Config.OUTPUT_DIR}")
-    print(f"🔄 Data split: {Config.BENIGN_TRAIN_RATIO*100:.0f}% benign for training, "
+        print(f"    Large mode: 2x medium size ({Config.LARGE_SAMPLE_SIZE:,} samples)")
+    print(f" Data directory: {Config.DATA_DIR}")
+    print(f" Output directory: {Config.OUTPUT_DIR}")
+    print(f" Data split: {Config.BENIGN_TRAIN_RATIO*100:.0f}% benign for training, "
           f"{(1-Config.BENIGN_TRAIN_RATIO)*100:.0f}% benign + all attacks for testing")
     
     if args.quick and args.hyperparam_tune:
-        print("⚡ Quick hyperparameter tuning enabled")
+        print(" Quick hyperparameter tuning enabled")
     
     # Create output directory
     Path(Config.OUTPUT_DIR).mkdir(exist_ok=True)
@@ -976,10 +976,10 @@ def main():
             
             # Update trainer with best parameters
             if hyperparam_results['best_params']:
-                print(f"\n🎯 Using best parameters for final training: {hyperparam_results['best_params']}")
+                print(f"\n Using best parameters for final training: {hyperparam_results['best_params']}")
                 trainer.params = hyperparam_results['best_params']
             else:
-                print("\n⚠️  No successful hyperparameter combinations found, using default parameters")
+                print("\n  No successful hyperparameter combinations found, using default parameters")
         
         # Train model
         trainer.train(X_train, y_train)
@@ -991,17 +991,17 @@ def main():
         saver = ModelSaver(Config.OUTPUT_DIR, mode, hyperparam_results)
         saver.save_model(trainer, metrics)
         
-        print(f"\n🎉 Training pipeline completed successfully!")
-        print(f"📊 Final F1 Score: {metrics['f1_score']:.4f}")
-        print(f"📊 Final Accuracy: {metrics['accuracy']:.4f}")
-        print(f"📁 Model saved in: {saver.model_dir}")
+        print(f"\n Training pipeline completed successfully!")
+        print(f" Final F1 Score: {metrics['f1_score']:.4f}")
+        print(f" Final Accuracy: {metrics['accuracy']:.4f}")
+        print(f" Model saved in: {saver.model_dir}")
         
         if args.hyperparam_tune and hyperparam_results and hyperparam_results['best_params']:
-            print(f"🏆 Best hyperparameters: {hyperparam_results['best_params']}")
-            print(f"🏆 Best F1 score from tuning: {hyperparam_results['best_score']:.4f}")
+            print(f" Best hyperparameters: {hyperparam_results['best_params']}")
+            print(f" Best F1 score from tuning: {hyperparam_results['best_score']:.4f}")
         
         if mode != "full":
-            print(f"\n⚠️  NOTE: This was a {mode} mode run.")
+            print(f"\n  NOTE: This was a {mode} mode run.")
             if mode == "large":
                 print("   Large mode provides high-quality training with reasonable time.")
             elif mode == "medium":
@@ -1010,7 +1010,7 @@ def main():
                 print("   For production use, consider running with full dataset.")
         
     except Exception as e:
-        print(f"❌ Pipeline failed: {e}")
+        print(f" Pipeline failed: {e}")
         raise
 
 

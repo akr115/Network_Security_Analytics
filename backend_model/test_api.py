@@ -144,7 +144,7 @@ def run_all_tests():
         try:
             results[test_name] = test_func()
         except Exception as e:
-            print(f"\n❌ {test_name} failed with error: {str(e)}")
+            print(f"\n {test_name} failed with error: {str(e)}")
             results[test_name] = False
     
     # Summary
@@ -152,7 +152,7 @@ def run_all_tests():
     print("Test Summary")
     print("="*60)
     for test_name, passed in results.items():
-        status = "✓ PASSED" if passed else "✗ FAILED"
+        status = " PASSED" if passed else " FAILED"
         print(f"{test_name}: {status}")
     
     total_tests = len(results)
@@ -164,7 +164,7 @@ if __name__ == "__main__":
     try:
         run_all_tests()
     except requests.exceptions.ConnectionError:
-        print("\n❌ Error: Could not connect to API")
+        print("\n Error: Could not connect to API")
         print("Make sure the API is running at", BASE_URL)
         print("\nStart the API with:")
         print("  python main.py")

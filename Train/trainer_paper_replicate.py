@@ -146,11 +146,11 @@ class DataLoader:
         print("="*60)
         
         mode_info = {
-            "small": ("🔬 SMALL SAMPLE MODE", Config.SMALL_SAMPLE_SIZE, None),
-            "medium": ("📊 MEDIUM SAMPLE MODE", Config.MEDIUM_SAMPLE_SIZE, None),
-            "large": ("📈 LARGE SAMPLE MODE", Config.LARGE_SAMPLE_SIZE, None),
-            "hyperparam": ("🎯 HYPERPARAMETER TUNING MODE", Config.HYPERPARAM_SAMPLE_SIZE, None),
-            "full": ("🚀 FULL TRAINING MODE", None, None)
+            "small": (" SMALL SAMPLE MODE", Config.SMALL_SAMPLE_SIZE, None),
+            "medium": (" MEDIUM SAMPLE MODE", Config.MEDIUM_SAMPLE_SIZE, None),
+            "large": (" LARGE SAMPLE MODE", Config.LARGE_SAMPLE_SIZE, None),
+            "hyperparam": (" HYPERPARAMETER TUNING MODE", Config.HYPERPARAM_SAMPLE_SIZE, None),
+            "full": (" FULL TRAINING MODE", None, None)
         }
         
         if self.mode in mode_info:
@@ -170,13 +170,13 @@ class DataLoader:
                 for encoding in ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252']:
                     try:
                         df = pd.read_csv(file_path, encoding=encoding)
-                        print(f"  → Loaded {len(df):,} rows (encoding: {encoding})")
+                        print(f"   Loaded {len(df):,} rows (encoding: {encoding})")
                         data_frames.append(df)
                         break
                     except UnicodeDecodeError:
                         continue
                     except Exception as e:
-                        print(f"  → Error with {encoding}: {e}")
+                        print(f"   Error with {encoding}: {e}")
                         continue
             else:
                 print(f"Warning: File not found: {file_path}")
@@ -185,7 +185,7 @@ class DataLoader:
             raise FileNotFoundError("No data files found!")
         
         combined_data = pd.concat(data_frames, ignore_index=True)
-        print(f"✓ Combined all files: {len(combined_data):,} rows")
+        print(f" Combined all files: {len(combined_data):,} rows")
         
         # Sample AFTER loading all data
         target_size = mode_info.get(self.mode, (None, None))[1]
@@ -193,8 +193,8 @@ class DataLoader:
             print(f"Sampling {target_size:,} rows from {len(combined_data):,} total rows")
             combined_data = combined_data.sample(n=target_size, random_state=Config.RANDOM_SEED)
         
-        print(f"✓ Final combined data shape: {combined_data.shape}")
-        print(f"✓ Columns: {len(combined_data.columns)}")
+        print(f" Final combined data shape: {combined_data.shape}")
+        print(f" Columns: {len(combined_data.columns)}")
         
         return combined_data
 
@@ -215,14 +215,14 @@ class DataPreprocessor:
         print("="*60)
         
         if self.mode != "full":
-            print(f"🔬 {self.mode.upper()} MODE: Quick preprocessing")
+            print(f" {self.mode.upper()} MODE: Quick preprocessing")
         
         # Clean column names and labels
         df.columns = df.columns.str.strip()
         df['Label'] = df['Label'].str.strip()
         
         # Check for all unique labels
-        print("\n🔍 All unique labels in dataset:")
+        print("\n All unique labels in dataset:")
         all_labels = df['Label'].unique()
         for label in sorted(all_labels):
             count = len(df[df['Label'] == label])
@@ -240,7 +240,7 @@ class DataPreprocessor:
         # Create binary target
         df['Attack'] = (df['Label'] != 'BENIGN').astype(int)
         
-        print(f"✓ Final cleaned data shape: {df.shape}")
+        print(f" Final cleaned data shape: {df.shape}")
         return df
     
     def _visualize_labels(self, df: pd.DataFrame) -> None:
@@ -270,20 +270,20 @@ class DataPreprocessor:
         print(label_counts)
         
         # Check for unknown attacks
-        print(f"\n⚠️  Checking for unknown attacks...")
+        print(f"\n  Checking for unknown attacks...")
         found_unknown = []
         for label in label_counts.index:
             # Check if label contains any unknown attack pattern
             label_lower = label.lower()
             if 'slowloris' in label_lower or 'slowhttptest' in label_lower or label_lower == 'bot':
                 found_unknown.append(label)
-                print(f"   ✓ Found: {repr(label)} ({label_counts[label]:,} samples)")
+                print(f"    Found: {repr(label)} ({label_counts[label]:,} samples)")
         
         if len(found_unknown) < 3:
-            print(f"\n   ⚠️  WARNING: Only found {len(found_unknown)} unknown attack types!")
+            print(f"\n     WARNING: Only found {len(found_unknown)} unknown attack types!")
             print(f"   Expected 3: DoS slowloris, DoS Slowhttptest, Bot")
             print(f"   This may affect results comparison with the paper.")
-            print(f"\n   💡 TIP: Make sure you're loading ALL CSV files without row limits!")
+            print(f"\n    TIP: Make sure you're loading ALL CSV files without row limits!")
     
     def _drop_columns(self, df: pd.DataFrame) -> pd.DataFrame:
         """Drop unnecessary and constant columns"""
@@ -346,7 +346,7 @@ class DataPreprocessor:
         # Update the dataframe with cleaned features
         df[feature_cols] = X
         
-        print("✓ Data cleaning completed (no extreme value capping)")
+        print(" Data cleaning completed (no extreme value capping)")
         return df
 
 
@@ -387,7 +387,7 @@ class CustomDataSplitter:
         print(f"Identified unknown attack labels: {unknown_attack_labels}")
         
         if len(unknown_attack_labels) < 3:
-            print(f"\n⚠️  WARNING: Only {len(unknown_attack_labels)} unknown attack types found!")
+            print(f"\n  WARNING: Only {len(unknown_attack_labels)} unknown attack types found!")
             print(f"   Expected 3 types. Results may differ from paper.")
         
         # Separate features and target
@@ -456,15 +456,15 @@ class CustomDataSplitter:
         
         overall_benign = (y_test_overall == 0).sum()
         overall_attack = (y_test_overall == 1).sum()
-        print(f"    → {overall_benign:,} benign ({overall_benign/len(y_test_overall)*100:.1f}%)")
-        print(f"    → {overall_attack:,} attacks ({overall_attack/len(y_test_overall)*100:.1f}%)")
+        print(f"     {overall_benign:,} benign ({overall_benign/len(y_test_overall)*100:.1f}%)")
+        print(f"     {overall_attack:,} attacks ({overall_attack/len(y_test_overall)*100:.1f}%)")
         
         if X_test_unknown is not None:
             print(f"  Unknown attack test set: {len(X_test_unknown):,} samples")
             unknown_benign = (y_test_unknown == 0).sum()
             unknown_attack = (y_test_unknown == 1).sum()
-            print(f"    → {unknown_benign:,} benign ({unknown_benign/len(y_test_unknown)*100:.1f}%)")
-            print(f"    → {unknown_attack:,} unknown attacks ({unknown_attack/len(y_test_unknown)*100:.1f}%)")
+            print(f"     {unknown_benign:,} benign ({unknown_benign/len(y_test_unknown)*100:.1f}%)")
+            print(f"     {unknown_attack:,} unknown attacks ({unknown_attack/len(y_test_unknown)*100:.1f}%)")
         else:
             print(f"  Unknown attack test set: None (no unknown attacks in dataset)")
         
@@ -521,7 +521,7 @@ class HyperparameterTuner:
         print(f"Testing {total_combinations} parameter combinations")
         
         if self.quick_mode:
-            print("🚀 QUICK MODE: Testing subset of combinations")
+            print(" QUICK MODE: Testing subset of combinations")
             param_combinations = param_combinations[:min(10, total_combinations)]
         
         print(f"Parameter grid:")
@@ -564,11 +564,11 @@ class HyperparameterTuner:
                     self.best_score = score
                     self.best_params = params.copy()
                 
-                print(f"  → F1: {metrics['f1_score']:.4f}, Acc: {metrics['accuracy']:.4f}, "
+                print(f"   F1: {metrics['f1_score']:.4f}, Acc: {metrics['accuracy']:.4f}, "
                       f"Time: {training_time:.2f}s, SVs: {model.n_support_[0]:,}")
                 
             except Exception as e:
-                print(f"  → Failed: {e}")
+                print(f"   Failed: {e}")
                 continue
         
         self._print_results_summary()
@@ -586,16 +586,16 @@ class HyperparameterTuner:
         print("="*60)
         
         if not self.results:
-            print("❌ No successful parameter combinations found!")
+            print(" No successful parameter combinations found!")
             return
         
         sorted_results = sorted(self.results, key=lambda x: x['metrics']['f1_score'], reverse=True)
         
-        print(f"✓ Tested {len(self.results)} parameter combinations")
-        print(f"🏆 Best F1 Score: {self.best_score:.4f}")
-        print(f"🎯 Best Parameters: {self.best_params}")
+        print(f" Tested {len(self.results)} parameter combinations")
+        print(f" Best F1 Score: {self.best_score:.4f}")
+        print(f" Best Parameters: {self.best_params}")
         
-        print("\n📊 Top 5 Results:")
+        print("\n Top 5 Results:")
         print("-" * 100)
         print(f"{'Rank':<4} {'F1':<6} {'Acc':<6} {'Prec':<6} {'Rec':<6} {'Time':<6} {'SVs':<8} {'Parameters'}")
         print("-" * 100)
@@ -629,14 +629,14 @@ class OCSSVMTrainer:
         print("="*60)
         
         if self.mode != "full":
-            print(f"🔬 {self.mode.upper()} MODE: Quick data preparation")
+            print(f" {self.mode.upper()} MODE: Quick data preparation")
         
         split_data = self.data_splitter.split_data(df)
         
         self.feature_names = split_data['feature_names']
-        print(f"\n✓ Features: {len(self.feature_names)}")
-        print(f"✓ Paper-compliant split completed")
-        print(f"✓ Unknown attacks excluded from training: {split_data['unknown_attack_labels']}")
+        print(f"\n Features: {len(self.feature_names)}")
+        print(f" Paper-compliant split completed")
+        print(f" Unknown attacks excluded from training: {split_data['unknown_attack_labels']}")
         
         return split_data
     
@@ -647,7 +647,7 @@ class OCSSVMTrainer:
         print("="*60)
         
         if self.mode != "full":
-            print(f"🔬 {self.mode.upper()} MODE: Fast training with limited data")
+            print(f" {self.mode.upper()} MODE: Fast training with limited data")
         
         sample_limits = {
             "small": Config.SMALL_BENIGN_SAMPLE,
@@ -672,7 +672,7 @@ class OCSSVMTrainer:
         
         try:
             X_train_scaled = self.scaler.fit_transform(X_train_sample)
-            print("✓ StandardScaler applied successfully")
+            print(" StandardScaler applied successfully")
         except Exception as e:
             print(f"StandardScaler failed: {e}")
             print("Falling back to RobustScaler...")
@@ -689,7 +689,7 @@ class OCSSVMTrainer:
         try:
             self.model.fit(X_train_scaled)
             training_time = datetime.now() - start_time
-            print(f"✓ Training completed successfully in {training_time.total_seconds():.2f} seconds!")
+            print(f" Training completed successfully in {training_time.total_seconds():.2f} seconds!")
             print(f"Support vectors: {self.model.n_support_[0]:,}")
             print(f"Support vector ratio: {self.model.n_support_[0] / len(X_train_scaled):.4f}")
         except Exception as e:
@@ -701,7 +701,7 @@ class OCSSVMTrainer:
             print(f"Training on reduced sample: {sample_size:,}")
             self.model.fit(X_sample)
             training_time = datetime.now() - start_time
-            print(f"✓ Training completed on reduced dataset in {training_time.total_seconds():.2f} seconds!")
+            print(f" Training completed on reduced dataset in {training_time.total_seconds():.2f} seconds!")
     
     def evaluate(self, X_test: pd.DataFrame, y_test: pd.Series, test_name: str = "Test") -> Dict[str, float]:
         """Evaluate the trained model"""
@@ -722,23 +722,23 @@ class OCSSVMTrainer:
             'f1_score': f1_score(y_test, y_pred_binary, zero_division=0)
         }
         
-        print(f"📊 Performance Metrics ({test_name}):")
+        print(f" Performance Metrics ({test_name}):")
         for metric, value in metrics.items():
             print(f"{metric.capitalize()}: {value:.4f}")
         
-        print(f"\n📋 Classification Report ({test_name}):")
+        print(f"\n Classification Report ({test_name}):")
         print(classification_report(y_test, y_pred_binary, 
                                   target_names=['Benign', 'Attack'], 
                                   zero_division=0))
         
         cm = confusion_matrix(y_test, y_pred_binary)
-        print(f"\n🎯 Confusion Matrix ({test_name}):")
+        print(f"\n Confusion Matrix ({test_name}):")
         print("           Predicted")
         print("         Benign  Attack")
         print(f"Actual Benign   {cm[0,0]:6d}  {cm[0,1]:6d}")
         print(f"       Attack   {cm[1,0]:6d}  {cm[1,1]:6d}")
         
-        print(f"\n📈 Detection Analysis ({test_name}):")
+        print(f"\n Detection Analysis ({test_name}):")
         benign_correct = cm[0,0]
         benign_total = cm[0,0] + cm[0,1]
         attack_detected = cm[1,1]
@@ -760,7 +760,7 @@ class OCSSVMTrainer:
         """Evaluate on both Overall and Unknown test sets"""
         results = {}
         
-        print("\n" + "🔵 EVALUATING ON OVERALL TEST SET 🔵")
+        print("\n" + " EVALUATING ON OVERALL TEST SET ")
         results['overall'] = self.evaluate(
             split_data['X_test_overall'], 
             split_data['y_test_overall'],
@@ -768,14 +768,14 @@ class OCSSVMTrainer:
         )
         
         if split_data['X_test_unknown'] is not None:
-            print("\n" + "🔴 EVALUATING ON UNKNOWN ATTACK TEST SET 🔴")
+            print("\n" + " EVALUATING ON UNKNOWN ATTACK TEST SET ")
             results['unknown'] = self.evaluate(
                 split_data['X_test_unknown'],
                 split_data['y_test_unknown'],
                 "Unknown Attack Test Set"
             )
         else:
-            print("\n⚠️  No unknown attacks in dataset - skipping unknown attack evaluation")
+            print("\n  No unknown attacks in dataset - skipping unknown attack evaluation")
             results['unknown'] = None
         
         return results
@@ -802,34 +802,34 @@ class ModelSaver:
         print("="*60)
         
         if self.mode != "full":
-            print(f"🔬 {self.mode.upper()} MODE: Saving model")
+            print(f" {self.mode.upper()} MODE: Saving model")
         
         try:
             model_path = self.model_dir / "ocsvm_model.pkl"
             with open(model_path, 'wb') as f:
                 pickle.dump(trainer.model, f)
-            print(f"✓ Model saved: {model_path}")
+            print(f" Model saved: {model_path}")
             
             scaler_path = self.model_dir / "feature_scaler.pkl"
             with open(scaler_path, 'wb') as f:
                 pickle.dump(trainer.scaler, f)
-            print(f"✓ Scaler saved: {scaler_path}")
+            print(f" Scaler saved: {scaler_path}")
             
             features_path = self.model_dir / "feature_names.pkl"
             with open(features_path, 'wb') as f:
                 pickle.dump(trainer.feature_names, f)
-            print(f"✓ Feature names saved: {features_path}")
+            print(f" Feature names saved: {features_path}")
             
             metrics_path = self.model_dir / "metrics.pkl"
             with open(metrics_path, 'wb') as f:
                 pickle.dump(metrics, f)
-            print(f"✓ Metrics saved: {metrics_path}")
+            print(f" Metrics saved: {metrics_path}")
             
             if self.hyperparam_results:
                 hyperparam_path = self.model_dir / "hyperparameter_results.pkl"
                 with open(hyperparam_path, 'wb') as f:
                     pickle.dump(self.hyperparam_results, f)
-                print(f"✓ Hyperparameter results saved: {hyperparam_path}")
+                print(f" Hyperparameter results saved: {hyperparam_path}")
                 
                 hyperparam_json_path = self.model_dir / "hyperparameter_results.json"
                 json_results = {
@@ -839,7 +839,7 @@ class ModelSaver:
                 }
                 with open(hyperparam_json_path, 'w') as f:
                     json.dump(json_results, f, indent=2)
-                print(f"✓ Hyperparameter summary saved: {hyperparam_json_path}")
+                print(f" Hyperparameter summary saved: {hyperparam_json_path}")
             
             config_path = self.model_dir / "config.pkl"
             config_data = {
@@ -852,14 +852,14 @@ class ModelSaver:
             }
             with open(config_path, 'wb') as f:
                 pickle.dump(config_data, f)
-            print(f"✓ Configuration saved: {config_path}")
+            print(f" Configuration saved: {config_path}")
             
             self._create_summary(metrics, trainer.params)
             
-            print(f"\n🎉 All artifacts saved to: {self.model_dir}")
+            print(f"\n All artifacts saved to: {self.model_dir}")
             
         except Exception as e:
-            print(f"❌ Error saving model: {e}")
+            print(f" Error saving model: {e}")
     
     def _create_summary(self, metrics: Dict[str, Any], params: Dict[str, Any]) -> None:
         """Create a human-readable summary file"""
@@ -927,7 +927,7 @@ class ModelSaver:
                 elif self.mode != "hyperparam":
                     f.write("For production use, consider running with full dataset.\n")
         
-        print(f"✓ Summary saved: {summary_path}")
+        print(f" Summary saved: {summary_path}")
 
 
 def parse_arguments():
@@ -1016,21 +1016,21 @@ def main():
         mode = "full"
         mode_desc = "FULL TRAINING (ALL DATA)"
     
-    print(f"🚀 Starting OCSVM Intrusion Detection Training Pipeline")
-    print(f"📋 Mode: {mode_desc}")
-    print(f"📄 Paper-Compliant Implementation")
+    print(f" Starting OCSVM Intrusion Detection Training Pipeline")
+    print(f" Mode: {mode_desc}")
+    print(f" Paper-Compliant Implementation")
     
     if mode != "full":
-        print(f"\n⚠️  WARNING: Using {mode} mode - results may differ from paper!")
+        print(f"\n  WARNING: Using {mode} mode - results may differ from paper!")
         print(f"   For accurate replication, run without flags to use ALL data.")
     
-    print(f"📁 Data directory: {Config.DATA_DIR}")
-    print(f"📁 Output directory: {Config.OUTPUT_DIR}")
-    print(f"🔄 Data split: {Config.BENIGN_TRAIN_RATIO*100:.0f}% benign for training")
-    print(f"⚠️  Unknown attacks will be identified and excluded from training")
+    print(f" Data directory: {Config.DATA_DIR}")
+    print(f" Output directory: {Config.OUTPUT_DIR}")
+    print(f" Data split: {Config.BENIGN_TRAIN_RATIO*100:.0f}% benign for training")
+    print(f"  Unknown attacks will be identified and excluded from training")
     
     if args.quick and args.hyperparam_tune:
-        print("⚡ Quick hyperparameter tuning enabled")
+        print(" Quick hyperparameter tuning enabled")
     
     Path(Config.OUTPUT_DIR).mkdir(exist_ok=True)
     
@@ -1070,10 +1070,10 @@ def main():
             )
             
             if hyperparam_results['best_params']:
-                print(f"\n🎯 Using best parameters: {hyperparam_results['best_params']}")
+                print(f"\n Using best parameters: {hyperparam_results['best_params']}")
                 trainer.params = hyperparam_results['best_params']
             else:
-                print("\n⚠️  No successful combinations, using default parameters")
+                print("\n  No successful combinations, using default parameters")
         
         # Train model
         trainer.train(split_data['X_train'], split_data['y_train'])
@@ -1085,33 +1085,33 @@ def main():
         saver = ModelSaver(Config.OUTPUT_DIR, mode, hyperparam_results)
         saver.save_model(trainer, all_metrics)
         
-        print(f"\n🎉 Training pipeline completed successfully!")
+        print(f"\n Training pipeline completed successfully!")
         
         if 'overall' in all_metrics:
-            print(f"\n📊 Overall Test Set Results:")
+            print(f"\n Overall Test Set Results:")
             print(f"   Accuracy:  {all_metrics['overall']['accuracy']:.4f}")
             print(f"   Precision: {all_metrics['overall']['precision']:.4f}")
             print(f"   Recall:    {all_metrics['overall']['recall']:.4f}")
             print(f"   F1 Score:  {all_metrics['overall']['f1_score']:.4f}")
         
         if 'unknown' in all_metrics and all_metrics['unknown'] is not None:
-            print(f"\n📊 Unknown Attack Test Set Results:")
+            print(f"\n Unknown Attack Test Set Results:")
             print(f"   Accuracy:  {all_metrics['unknown']['accuracy']:.4f}")
             print(f"   Precision: {all_metrics['unknown']['precision']:.4f}")
             print(f"   Recall:    {all_metrics['unknown']['recall']:.4f}")
             print(f"   F1 Score:  {all_metrics['unknown']['f1_score']:.4f}")
         
-        print(f"\n📁 Model saved in: {saver.model_dir}")
+        print(f"\n Model saved in: {saver.model_dir}")
         
         if mode != "full":
-            print(f"\n⚠️  NOTE: This was a {mode} mode run.")
+            print(f"\n  NOTE: This was a {mode} mode run.")
             print(f"   For best results matching the paper, run with ALL data (no flags).")
         
-        print(f"\n📄 Implementation follows paper methodology:")
+        print(f"\n Implementation follows paper methodology:")
         print(f"   'Robust Anomaly Detection in Network Traffic'")
         
     except Exception as e:
-        print(f"❌ Pipeline failed: {e}")
+        print(f" Pipeline failed: {e}")
         import traceback
         traceback.print_exc()
         raise
