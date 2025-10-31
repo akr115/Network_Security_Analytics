@@ -1,19 +1,19 @@
 services:
   # Elasticsearch service, backend to consume all logs and provide search capabilities and alerts
-#   elasticsearch:
-#     image: 'docker.elastic.co/elasticsearch/elasticsearch-wolfi:9.1.5'
-#     container_name: elasticsearch
-#     environment:
-#     - discovery.type=single-node
-#     - ES_JAVA_OPTS=-Xms512m -Xmx512m
-#     - xpack.security.enabled=false
-#     - xpack.security.http.ssl.enabled=false
-#     ports:
-#     - '9200:9200'
-#     networks:
-#     - elastic
-#     volumes:
-#     - 'esdata:/usr/share/elasticsearch/data'
+  elasticsearch:
+    image: 'docker.elastic.co/elasticsearch/elasticsearch-wolfi:9.1.5'
+    container_name: elasticsearch
+    environment:
+    - discovery.type=single-node
+    - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    - xpack.security.enabled=false
+    - xpack.security.http.ssl.enabled=false
+    ports:
+    - '9200:9200'
+    networks:
+    - elastic
+    volumes:
+    - 'esdata:/usr/share/elasticsearch/data'
 
 # # Kibana service, web interface to visualize and explore logs stored in Elasticsearch
 #   kibana:
@@ -62,19 +62,6 @@ services:
     restart: "no"
     networks:
       - elastic
-
-
-# Suricata service, network IDS/IPS to monitor network traffic and generate logs
-  # suricata:
-  #   build: 
-  #     context: ./integrations/suricata
-  #     dockerfile: ./Dockerfile
-  #   volumes:
-  #     - ./integrations/suricata/logs:/var/log/suricata
-  #     - ./integrations/suricata/suricata.yaml:/etc/suricata/suricata.yaml:ro
-  #     - ./integrations/suricata/example.pcap:/example.pcap
-  #   networks:
-  #     - elastic
 
   ocsvm-api:
     build:
