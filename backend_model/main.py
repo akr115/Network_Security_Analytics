@@ -646,7 +646,8 @@ async def predict_from_csv(request: Request):
         examples += 1
         print("\n===== Received CSV Input =====")
         data = await request.json()
-        input_data = CSVFlowInput(data['csv'])
+        data_csv = data["csv"]
+        input_data = CSVFlowInput(data_csv)
         print(f"CSV Data: {input_data}")
         print("================================\n")
         try:
