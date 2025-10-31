@@ -11,10 +11,12 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional
 import numpy as np
 import pandas as pd
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, validator
 import uvicorn
+
+examples = 0
 
 # Suppress warnings
 warnings.filterwarnings('ignore')
@@ -637,24 +639,32 @@ async def predict_from_csv(input_data: CSVFlowInput):
     flow_byts_s, flow_pkts_s, fwd_pkts_s, bwd_pkts_s, tot_fwd_pkts, 
     tot_bwd_pkts, totlen_fwd_pkts, totlen_bwd_pkts, ... (82 fields total)
     """
-    try:
-        # Convert CSV array to feature dictionary
-        feature_dict = csv_array_to_feature_dict(input_data.csv)
-        
-        # Make prediction using existing model
-        result = model_manager.predict_single(feature_dict)
-        return result
-        
-    except RuntimeError as e:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=str(e)
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Prediction failed: {str(e)}"
-        )
+
+    global examples
+
+    if examples == 0:
+        examples += 1
+        print("\n===== Received CSV Input =====")
+        print(input_data.csv)
+        print("================================\n")
+        try:
+            # Convert CSV array to feature dictionary
+            feature_dict = csv_array_to_feature_dict(input_data.csv)
+            
+            # Make prediction using existing model
+            result = model_manager.predict_single(feature_dict)
+            return result
+            
+        except RuntimeError as e:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=str(e)
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Prediction failed: {str(e)}"
+            )
 
 
 @app.post("/predict/csv/batch", response_model=BatchPredictionOutput)
@@ -686,6 +696,26 @@ async def predict_batch_from_csv(csv_flows: List[List]):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Batch prediction failed: {str(e)}"
         )
+    
+
+# @app.post("/test-logstash")
+# async def test_logstash_payload(request: Request):
+#     """
+#     Test endpoint to visualize exactly what Logstash will send.
+#     Prints the received JSON and returns it back unchanged.
+#     """
+#     global examples
+#     if examples == 0:
+#         examples += 1
+#         try:
+#             data = await request.json()
+#             print("\n===== Received Payload from Logstash =====")
+#             print(data)
+#             print("=========================================\n")
+#             return {"received": data}
+#         except Exception as e:
+#             print(f"Error parsing payload: {e}")
+#             raise HTTPException(status_code=400, detail="Invalid JSON format")
 
 
 if __name__ == "__main__":
