@@ -16,12 +16,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, validator
 import uvicorn
 
-examples = 0
+# Configuration
+DEBUG = os.getenv("DEBUG", "false").lower() == "true"
 
 # Suppress warnings
 warnings.filterwarnings('ignore')
 
-# Configuration
+
 class Config:
     MODEL_DIR = os.getenv("MODEL_DIR", "production_model")
     MODEL_NAME = "ocsvm_model.pkl"
@@ -34,6 +35,12 @@ class Config:
         'Timestamp', 'Fwd Header Length.1',
         'Label', 'Attack'
     ]
+
+
+def debug_print(*args, **kwargs):
+    """Print only if DEBUG is enabled"""
+    if DEBUG:
+        print(*args, **kwargs)
 
 
 # Pydantic models for request/response
@@ -88,50 +95,6 @@ class HealthResponse(BaseModel):
     status: str
     model_loaded: bool
     model_info: Optional[Dict[str, Any]] = None
-
-
-class CSVFlowInput(BaseModel):
-    """
-    Input model for CSV string format network flow.
-    Accepts a single comma-separated string or array from CICFlowMeter.
-    """
-    csv: Union[str, List] = Field(
-        ...,
-        description="Comma-separated string or array of network flow values"
-    )
-    
-    @validator('csv')
-    def validate_and_parse_csv(cls, v):
-        # If it's already a list, validate length
-        if isinstance(v, list):
-            if len(v) not in [80, 82]:
-                raise ValueError(f"CSV array must have 80 or 82 fields, got {len(v)}")
-            return v
-        
-        # If it's a string, parse it
-        if isinstance(v, str):
-            if not v:
-                raise ValueError("CSV string cannot be empty")
-            
-            # Split by comma and strip whitespace
-            fields = [field.strip() for field in v.split(',')]
-            
-            # Validate field count
-            if len(fields) not in [80, 82]:
-                raise ValueError(f"CSV must have 80 or 82 fields, got {len(fields)}")
-            
-            return fields
-        
-        raise ValueError("CSV must be a string or list")
-
-
-class BatchCSVFlowInput(BaseModel):
-    """Input model for batch CSV predictions"""
-    flows: List[Union[str, List]] = Field(
-        ...,
-        description="List of comma-separated CSV strings or arrays",
-        min_items=1
-    )
 
 
 class DataPreprocessor:
@@ -254,10 +217,10 @@ class ModelManager:
                     except ValueError:
                         params[key] = value
             
-            print(f"✓ Parsed {len(params)} parameters from model_summary.txt")
+            debug_print(f"✓ Parsed {len(params)} parameters from model_summary.txt")
             
         except Exception as e:
-            print(f"⚠️  Warning: Could not parse model_summary.txt: {str(e)}")
+            debug_print(f"⚠️  Warning: Could not parse model_summary.txt: {str(e)}")
         
         return params
     
@@ -375,6 +338,8 @@ async def startup_event():
     try:
         model_manager.load_model(Config.MODEL_DIR)
         print("🚀 API is ready to accept requests")
+        if DEBUG:
+            print("🐛 DEBUG MODE ENABLED")
     except Exception as e:
         print(f"❌ Failed to load model: {str(e)}")
         print("⚠️  API will start but predictions will fail until model is loaded")
@@ -625,7 +590,7 @@ def csv_array_to_feature_dict(csv_array: List[str]) -> Dict[str, float]:
                 else:
                     feature_dict[model_col] = float(value)
             except (ValueError, TypeError) as e:
-                print(f"Warning: Could not convert {csv_col}={csv_dict[csv_col]} to float: {e}")
+                debug_print(f"Warning: Could not convert {csv_col}={csv_dict[csv_col]} to float: {e}")
                 feature_dict[model_col] = 0.0
     
     return feature_dict
@@ -640,10 +605,8 @@ async def predict_from_csv(request: Request):
     - A comma-separated string: {"csv": "192.168.10.3,192.168.10.1,61834,53,..."}
     - An array: {"csv": ["192.168.10.3", "192.168.10.1", "61834", "53", ...]}
     
-    Returns: {"prediction": "BENIGN/ATTACK", "confidence": 0.123, "is_anomaly": false}
+    Returns: "Benign" or "Attack"
     """
-    global examples
-
     try:
         # Parse the JSON body
         data = await request.json()
@@ -675,37 +638,30 @@ async def predict_from_csv(request: Request):
                 detail=f"CSV must have 80 or 82 fields, got {len(csv_fields)}"
             )
         
-        # Debug: Print first example
-        if examples == 0:
-            examples += 1
-            print(f"\n===== Received CSV Input ({len(csv_fields)} fields) =====")
-            print(f"First 10 fields: {csv_fields[:10]}")
-            print(f"Last 5 fields: {csv_fields[-5:]}")
-            print("================================\n")
+        # Debug logging
+        debug_print(f"\n===== Received CSV Input ({len(csv_fields)} fields) =====")
+        debug_print(f"First 10 fields: {csv_fields[:10]}")
+        debug_print(f"Last 5 fields: {csv_fields[-5:]}")
+        debug_print("================================\n")
         
         # Convert CSV array to feature dictionary
         feature_dict = csv_array_to_feature_dict(csv_fields)
         
-        # Debug: Print feature dict for first example
-        if examples == 1:
-            print(f"\n===== Converted Feature Dict ({len(feature_dict)} features) =====")
+        debug_print(f"\n===== Converted Feature Dict ({len(feature_dict)} features) =====")
+        if DEBUG:
             feature_names = list(feature_dict.keys())
-            print(f"First 5 features: {feature_names[:5]}")
-            print(f"First 5 values: {[feature_dict[k] for k in feature_names[:5]]}")
-            print("================================\n")
+            debug_print(f"First 5 features: {feature_names[:5]}")
+            debug_print(f"First 5 values: {[feature_dict[k] for k in feature_names[:5]]}")
+            debug_print("================================\n")
         
         # Make prediction
         result = model_manager.predict_single(feature_dict)
         
-        # Log prediction result
-        print(f"✓ Prediction: {result.prediction} (confidence: {result.confidence:.4f})")
+        # Debug logging
+        debug_print(f"✓ Prediction: {result.prediction} (confidence: {result.confidence:.4f})")
         
-        # Return the prediction result as JSON
-        return {
-            "prediction": result.prediction,
-            "confidence": result.confidence,
-            "is_anomaly": result.is_anomaly
-        }
+        # Return simple string response: "Benign" or "Attack"
+        return result.prediction.capitalize()
         
     except HTTPException:
         raise
@@ -716,50 +672,12 @@ async def predict_from_csv(request: Request):
         )
     except Exception as e:
         import traceback
-        print(f"❌ Error in prediction: {str(e)}")
-        print(traceback.format_exc())
+        if DEBUG:
+            debug_print(f"❌ Error in prediction: {str(e)}")
+            debug_print(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Prediction failed: {str(e)}"
-        )
-
-
-@app.post("/predict/csv/batch", response_model=BatchPredictionOutput)
-async def predict_batch_from_csv(input_data: BatchCSVFlowInput):
-    """
-    Predict multiple network flows from CSV format.
-    
-    Accepts a list of CSV strings or arrays.
-    """
-    try:
-        feature_dicts = []
-        for i, csv_item in enumerate(input_data.flows):
-            # Parse if string
-            if isinstance(csv_item, str):
-                fields = [field.strip() for field in csv_item.split(',')]
-            else:
-                fields = csv_item
-            
-            if len(fields) not in [80, 82]:
-                raise ValueError(f"Flow {i}: Expected 80 or 82 fields, got {len(fields)}")
-            
-            feature_dicts.append(csv_array_to_feature_dict(fields))
-        
-        result = model_manager.predict_batch(feature_dicts)
-        return result
-        
-    except RuntimeError as e:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=str(e)
-        )
-    except Exception as e:
-        import traceback
-        print(f"❌ Error in batch prediction: {str(e)}")
-        print(traceback.format_exc())
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Batch prediction failed: {str(e)}"
         )
 
 
