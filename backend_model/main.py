@@ -8,7 +8,7 @@ import pickle
 import warnings
 import os
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Union
 import numpy as np
 import pandas as pd
 from fastapi import FastAPI, HTTPException, status, Request
@@ -23,15 +23,12 @@ warnings.filterwarnings('ignore')
 
 # Configuration
 class Config:
-    # For local development, use production_model directory
-    # For Docker, model is copied to /app/model/
     MODEL_DIR = os.getenv("MODEL_DIR", "production_model")
     MODEL_NAME = "ocsvm_model.pkl"
     SCALER_NAME = "feature_scaler.pkl"
     FEATURE_NAMES_FILE = "feature_names.pkl"
     CONFIG_FILE = "config.pkl"
     
-    # Columns that should be excluded from features
     COLUMNS_TO_DROP = [
         'Flow ID', 'Source IP', 'Destination IP', 
         'Timestamp', 'Fwd Header Length.1',
@@ -41,10 +38,7 @@ class Config:
 
 # Pydantic models for request/response
 class NetworkFlowInput(BaseModel):
-    """
-    Input model for a single network flow record.
-    All feature names should match the training data columns.
-    """
+    """Input model for a single network flow record."""
     data: Dict[str, float] = Field(
         ...,
         description="Dictionary of feature names and their values",
@@ -55,7 +49,6 @@ class NetworkFlowInput(BaseModel):
             "Total Backward Packets": 8,
             "Total Length of Fwd Packets": 5000,
             "Total Length of Bwd Packets": 3000,
-            # ... more features
         }
     )
     
@@ -97,6 +90,50 @@ class HealthResponse(BaseModel):
     model_info: Optional[Dict[str, Any]] = None
 
 
+class CSVFlowInput(BaseModel):
+    """
+    Input model for CSV string format network flow.
+    Accepts a single comma-separated string or array from CICFlowMeter.
+    """
+    csv: Union[str, List] = Field(
+        ...,
+        description="Comma-separated string or array of network flow values"
+    )
+    
+    @validator('csv')
+    def validate_and_parse_csv(cls, v):
+        # If it's already a list, validate length
+        if isinstance(v, list):
+            if len(v) not in [80, 82]:
+                raise ValueError(f"CSV array must have 80 or 82 fields, got {len(v)}")
+            return v
+        
+        # If it's a string, parse it
+        if isinstance(v, str):
+            if not v:
+                raise ValueError("CSV string cannot be empty")
+            
+            # Split by comma and strip whitespace
+            fields = [field.strip() for field in v.split(',')]
+            
+            # Validate field count
+            if len(fields) not in [80, 82]:
+                raise ValueError(f"CSV must have 80 or 82 fields, got {len(fields)}")
+            
+            return fields
+        
+        raise ValueError("CSV must be a string or list")
+
+
+class BatchCSVFlowInput(BaseModel):
+    """Input model for batch CSV predictions"""
+    flows: List[Union[str, List]] = Field(
+        ...,
+        description="List of comma-separated CSV strings or arrays",
+        min_items=1
+    )
+
+
 class DataPreprocessor:
     """Handle data preprocessing matching the training pipeline"""
     
@@ -105,29 +142,17 @@ class DataPreprocessor:
         self.columns_to_drop = Config.COLUMNS_TO_DROP
     
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Preprocess input data to match training pipeline
-        """
-        # Clean column names
+        """Preprocess input data to match training pipeline"""
         df.columns = df.columns.str.strip()
         
-        # Ensure all expected features are present
         missing_features = set(self.feature_names) - set(df.columns)
         if missing_features:
-            # Add missing features with default value 0
             for feature in missing_features:
                 df[feature] = 0.0
         
-        # Select only the features used in training (in the same order)
         df = df[self.feature_names]
-        
-        # Handle infinite values
         df.replace([np.inf, -np.inf], np.nan, inplace=True)
-        
-        # Handle NaN values - fill with median (0 for initial request)
         df.fillna(0, inplace=True)
-        
-        # Ensure all values are numeric
         df = df.apply(pd.to_numeric, errors='coerce')
         df.fillna(0, inplace=True)
         
@@ -153,28 +178,22 @@ class ModelManager:
             raise FileNotFoundError(f"Model directory not found: {model_dir}")
         
         try:
-            # Load model
             with open(model_path / Config.MODEL_NAME, 'rb') as f:
                 self.model = pickle.load(f)
             
-            # Load scaler
             with open(model_path / Config.SCALER_NAME, 'rb') as f:
                 self.scaler = pickle.load(f)
             
-            # Load feature names
             with open(model_path / Config.FEATURE_NAMES_FILE, 'rb') as f:
                 self.feature_names = pickle.load(f)
             
-            # Load config from pickle (may not have all params)
             with open(model_path / Config.CONFIG_FILE, 'rb') as f:
                 self.config = pickle.load(f)
             
-            # Parse model_summary.txt for accurate parameters
             summary_file = model_path / "model_summary.txt"
             if summary_file.exists():
                 self.config.update(self._parse_model_summary(summary_file))
             
-            # Initialize preprocessor
             self.preprocessor = DataPreprocessor(self.feature_names)
             
             self.model_loaded = True
@@ -197,7 +216,6 @@ class ModelManager:
             for line in lines:
                 line = line.strip()
                 
-                # Detect sections
                 if "Model Parameters:" in line:
                     in_params_section = True
                     in_metrics_section = False
@@ -209,13 +227,11 @@ class ModelManager:
                 elif line.startswith("=="):
                     continue
                 
-                # Parse parameters
                 if in_params_section and ':' in line:
                     key, value = line.split(':', 1)
                     key = key.strip()
                     value = value.strip()
                     
-                    # Convert values to appropriate types
                     if value.lower() == 'true':
                         params[key] = True
                     elif value.lower() == 'false':
@@ -228,7 +244,6 @@ class ModelManager:
                         except ValueError:
                             params[key] = value
                 
-                # Parse metrics
                 if in_metrics_section and ':' in line:
                     key, value = line.split(':', 1)
                     key = key.strip()
@@ -251,22 +266,13 @@ class ModelManager:
         if not self.model_loaded:
             raise RuntimeError("Model not loaded")
         
-        # Convert to DataFrame
         df = pd.DataFrame([data])
-        
-        # Preprocess
         df_processed = self.preprocessor.preprocess(df)
-        
-        # Scale features
         X_scaled = self.scaler.transform(df_processed)
         
-        # Predict (OCSVM returns 1 for inliers/benign, -1 for outliers/attacks)
         prediction = self.model.predict(X_scaled)[0]
-        
-        # Get decision function score (distance from hyperplane)
         decision_score = self.model.decision_function(X_scaled)[0]
         
-        # Map prediction: 1 (inlier) -> BENIGN, -1 (outlier) -> ATTACK
         is_attack = prediction == -1
         label = "ATTACK" if is_attack else "BENIGN"
         
@@ -281,20 +287,13 @@ class ModelManager:
         if not self.model_loaded:
             raise RuntimeError("Model not loaded")
         
-        # Convert to DataFrame
         df = pd.DataFrame(flows)
-        
-        # Preprocess
         df_processed = self.preprocessor.preprocess(df)
-        
-        # Scale features
         X_scaled = self.scaler.transform(df_processed)
         
-        # Predict
         predictions = self.model.predict(X_scaled)
         decision_scores = self.model.decision_function(X_scaled)
         
-        # Create results
         results = []
         attack_count = 0
         
@@ -332,7 +331,6 @@ class ModelManager:
             "features": self.feature_names[:10] + ["..."] if len(self.feature_names) > 10 else self.feature_names
         }
         
-        # Add additional parameters if available
         if 'shrinking' in self.config:
             info['shrinking'] = self.config['shrinking']
         if 'cache_size' in self.config:
@@ -340,7 +338,6 @@ class ModelManager:
         if 'max_iter' in self.config:
             info['max_iter'] = self.config['max_iter']
         
-        # Add performance metrics if available
         metrics = {}
         for metric in ['Accuracy', 'Precision', 'Recall', 'F1_score']:
             if metric in self.config:
@@ -361,16 +358,14 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Initialize model manager
 model_manager = ModelManager()
 
 
@@ -407,9 +402,7 @@ async def health_check():
 
 @app.post("/predict", response_model=PredictionOutput)
 async def predict(input_data: NetworkFlowInput):
-    """
-    Predict if a single network flow is benign or an attack
-    """
+    """Predict if a single network flow is benign or an attack"""
     try:
         result = model_manager.predict_single(input_data.data)
         return result
@@ -427,9 +420,7 @@ async def predict(input_data: NetworkFlowInput):
 
 @app.post("/predict/batch", response_model=BatchPredictionOutput)
 async def predict_batch(input_data: BatchNetworkFlowInput):
-    """
-    Predict multiple network flows at once
-    """
+    """Predict multiple network flows at once"""
     try:
         result = model_manager.predict_batch(input_data.flows)
         return result
@@ -447,9 +438,7 @@ async def predict_batch(input_data: BatchNetworkFlowInput):
 
 @app.get("/features", response_model=Dict[str, Any])
 async def get_features():
-    """
-    Get the list of features expected by the model
-    """
+    """Get the list of features expected by the model"""
     if not model_manager.model_loaded:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -464,9 +453,7 @@ async def get_features():
 
 @app.get("/model/info", response_model=Dict[str, Any])
 async def get_model_info():
-    """
-    Get information about the loaded model
-    """
+    """Get information about the loaded model"""
     if not model_manager.model_loaded:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -475,29 +462,9 @@ async def get_model_info():
     
     return model_manager.get_model_info()
 
-from typing import List
 
-class CSVFlowInput(BaseModel):
-    """
-    Input model for CSV array format network flow.
-    Expects data in the order of the first CSV format.
-    """
-    csv: List = Field(
-        ...,
-        description="Array of values in CSV order",
-        min_items=82  # Total number of fields in first CSV
-    )
-    
-    @validator('csv')
-    def validate_csv_length(cls, v):
-        if len(v) != 82:
-            raise ValueError(f"CSV array must have exactly 82 elements, got {len(v)}")
-        return v
-
-
-# Mapping from first CSV column names to second CSV column names (model features)
+# CSV Mapping and Column Orders
 CSV_TO_FEATURE_MAPPING = {
-    # First CSV column name -> Second CSV column name (used in training)
     'dst_port': 'Destination Port',
     'flow_duration': 'Flow Duration',
     'tot_fwd_pkts': 'Total Fwd Packets',
@@ -577,7 +544,7 @@ CSV_TO_FEATURE_MAPPING = {
     'idle_min': 'Idle Min',
 }
 
-# Column order in the incoming CSV array
+# 82 fields (with src_ip, dst_ip)
 CSV_COLUMN_ORDER = [
     'src_ip', 'dst_ip', 'src_port', 'dst_port', 'protocol', 'timestamp',
     'flow_duration', 'flow_byts_s', 'flow_pkts_s', 'fwd_pkts_s', 'bwd_pkts_s',
@@ -601,15 +568,47 @@ CSV_COLUMN_ORDER = [
     'subflow_fwd_byts', 'subflow_bwd_byts'
 ]
 
+# 80 fields (without src_ip, dst_ip) - CICFlowMeter format
+CICFLOWMETER_COLUMN_ORDER = [
+    'src_port', 'dst_port', 'protocol', 'timestamp',
+    'flow_duration', 'flow_byts_s', 'flow_pkts_s', 'fwd_pkts_s', 'bwd_pkts_s',
+    'tot_fwd_pkts', 'tot_bwd_pkts', 'totlen_fwd_pkts', 'totlen_bwd_pkts',
+    'fwd_pkt_len_max', 'fwd_pkt_len_min', 'fwd_pkt_len_mean', 'fwd_pkt_len_std',
+    'bwd_pkt_len_max', 'bwd_pkt_len_min', 'bwd_pkt_len_mean', 'bwd_pkt_len_std',
+    'pkt_len_max', 'pkt_len_min', 'pkt_len_mean', 'pkt_len_std', 'pkt_len_var',
+    'fwd_header_len', 'bwd_header_len', 'fwd_seg_size_min', 'fwd_act_data_pkts',
+    'flow_iat_mean', 'flow_iat_max', 'flow_iat_min', 'flow_iat_std',
+    'fwd_iat_tot', 'fwd_iat_max', 'fwd_iat_min', 'fwd_iat_mean', 'fwd_iat_std',
+    'bwd_iat_tot', 'bwd_iat_max', 'bwd_iat_min', 'bwd_iat_mean', 'bwd_iat_std',
+    'fwd_psh_flags', 'bwd_psh_flags', 'fwd_urg_flags', 'bwd_urg_flags',
+    'fin_flag_cnt', 'syn_flag_cnt', 'rst_flag_cnt', 'psh_flag_cnt',
+    'ack_flag_cnt', 'urg_flag_cnt', 'ece_flag_cnt', 'down_up_ratio',
+    'pkt_size_avg', 'init_fwd_win_byts', 'init_bwd_win_byts',
+    'active_max', 'active_min', 'active_mean', 'active_std',
+    'idle_max', 'idle_min', 'idle_mean', 'idle_std',
+    'fwd_byts_b_avg', 'fwd_pkts_b_avg', 'bwd_byts_b_avg', 'bwd_pkts_b_avg',
+    'fwd_blk_rate_avg', 'bwd_blk_rate_avg', 'fwd_seg_size_avg', 'bwd_seg_size_avg',
+    'cwr_flag_count', 'subflow_fwd_pkts', 'subflow_bwd_pkts',
+    'subflow_fwd_byts', 'subflow_bwd_byts'
+]
 
-def csv_array_to_feature_dict(csv_array: List) -> Dict[str, float]:
+
+def csv_array_to_feature_dict(csv_array: List[str]) -> Dict[str, float]:
     """
-    Convert CSV array to feature dictionary with model's expected column names.
-    Excludes columns that should be dropped (src_ip, dst_ip, src_port, protocol, timestamp).
+    Convert CSV array (list of strings) to feature dictionary.
+    Handles both 80-field (CICFlowMeter) and 82-field (original) formats.
     """
+    # Determine format
+    if len(csv_array) == 82:
+        column_order = CSV_COLUMN_ORDER
+    elif len(csv_array) == 80:
+        column_order = CICFLOWMETER_COLUMN_ORDER
+    else:
+        raise ValueError(f"Unexpected CSV length: {len(csv_array)}")
+    
     # Create dictionary from CSV array
     csv_dict = {}
-    for i, col_name in enumerate(CSV_COLUMN_ORDER):
+    for i, col_name in enumerate(column_order):
         if i < len(csv_array):
             csv_dict[col_name] = csv_array[i]
     
@@ -620,72 +619,98 @@ def csv_array_to_feature_dict(csv_array: List) -> Dict[str, float]:
     for csv_col, model_col in CSV_TO_FEATURE_MAPPING.items():
         if csv_col in csv_dict and csv_col not in columns_to_exclude:
             try:
-                # Convert to float
-                feature_dict[model_col] = float(csv_dict[csv_col])
-            except (ValueError, TypeError):
-                # If conversion fails, use 0.0 as default
+                value = csv_dict[csv_col]
+                if value == '' or value is None:
+                    feature_dict[model_col] = 0.0
+                else:
+                    feature_dict[model_col] = float(value)
+            except (ValueError, TypeError) as e:
+                print(f"Warning: Could not convert {csv_col}={csv_dict[csv_col]} to float: {e}")
                 feature_dict[model_col] = 0.0
     
     return feature_dict
 
 
-@app.post("/predict/csv")
-async def predict_from_csv(request: Request):
+@app.post("/predict/csv", response_model=PredictionOutput)
+async def predict_from_csv(input_data: CSVFlowInput):
     """
-    Predict if a network flow is benign or an attack from CSV array format.
+    Predict if a network flow is benign or an attack from CSV format.
     
-    Expects data in the order:
-    src_ip, dst_ip, src_port, dst_port, protocol, timestamp, flow_duration, 
-    flow_byts_s, flow_pkts_s, fwd_pkts_s, bwd_pkts_s, tot_fwd_pkts, 
-    tot_bwd_pkts, totlen_fwd_pkts, totlen_bwd_pkts, ... (82 fields total)
+    Accepts either:
+    - A comma-separated string: "192.168.10.3,192.168.10.1,61834,53,..."
+    - An array: ["192.168.10.3", "192.168.10.1", "61834", "53", ...]
+    
+    Supports both 80 fields (CICFlowMeter) and 82 fields (with IPs).
     """
-
     global examples
 
-    if examples == 0:
-        examples += 1
-        print("\n===== Received CSV Input =====")
-        data = await request.json()
-        data_csv = data["csv"]
-        input_data = CSVFlowInput(data_csv)
-        print(f"CSV Data: {input_data}")
-        print("================================\n")
-        try:
-            # Convert CSV array to feature dictionary
-            feature_dict = csv_array_to_feature_dict(input_data.csv)
-            
-            # Make prediction using existing model
-            result = model_manager.predict_single(feature_dict)
-            print(f"Prediction Result: {result}\n")
-            return {"label": "0"}
-        except RuntimeError as e:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=str(e)
-            )
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Prediction failed: {str(e)}"
-            )
+    try:
+        # input_data.csv is now a list of strings (parsed by validator)
+        csv_fields = input_data.csv
+        
+        # Debug: Print first example
+        if examples == 0:
+            examples += 1
+            print(f"\n===== Received CSV Input ({len(csv_fields)} fields) =====")
+            print(f"First 10 fields: {csv_fields[:10]}")
+            print(f"Last 5 fields: {csv_fields[-5:]}")
+            print("================================\n")
+        
+        # Convert CSV array to feature dictionary
+        feature_dict = csv_array_to_feature_dict(csv_fields)
+        
+        # Debug: Print feature dict for first example
+        if examples == 1:
+            print(f"\n===== Converted Feature Dict ({len(feature_dict)} features) =====")
+            feature_names = list(feature_dict.keys())
+            print(f"First 5 features: {feature_names[:5]}")
+            print(f"First 5 values: {[feature_dict[k] for k in feature_names[:5]]}")
+            print("================================\n")
+        
+        # Make prediction
+        result = model_manager.predict_single(feature_dict)
+        
+        # Log prediction result
+        print(f"✓ Prediction: {result.prediction} (confidence: {result.confidence:.4f})")
+        
+        return result
+        
+    except RuntimeError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(e)
+        )
+    except Exception as e:
+        import traceback
+        print(f"❌ Error in prediction: {str(e)}")
+        print(traceback.format_exc())
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Prediction failed: {str(e)}"
+        )
 
 
 @app.post("/predict/csv/batch", response_model=BatchPredictionOutput)
-async def predict_batch_from_csv(csv_flows: List[List]):
+async def predict_batch_from_csv(input_data: BatchCSVFlowInput):
     """
-    Predict multiple network flows from CSV array format.
+    Predict multiple network flows from CSV format.
     
-    Expects a list of CSV arrays, each with 82 fields in the specified order.
+    Accepts a list of CSV strings or arrays.
     """
     try:
-        # Validate and convert all CSV arrays
         feature_dicts = []
-        for i, csv_array in enumerate(csv_flows):
-            if len(csv_array) != 82:
-                raise ValueError(f"Flow {i}: Expected 82 fields, got {len(csv_array)}")
-            feature_dicts.append(csv_array_to_feature_dict(csv_array))
+        for i, csv_item in enumerate(input_data.flows):
+            # Parse if string
+            if isinstance(csv_item, str):
+                fields = [field.strip() for field in csv_item.split(',')]
+            else:
+                fields = csv_item
+            
+            if len(fields) not in [80, 82]:
+                raise ValueError(f"Flow {i}: Expected 80 or 82 fields, got {len(fields)}")
+            
+            feature_dicts.append(csv_array_to_feature_dict(fields))
         
-        # Make batch prediction
         result = model_manager.predict_batch(feature_dicts)
         return result
         
@@ -695,50 +720,20 @@ async def predict_batch_from_csv(csv_flows: List[List]):
             detail=str(e)
         )
     except Exception as e:
+        import traceback
+        print(f"❌ Error in batch prediction: {str(e)}")
+        print(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Batch prediction failed: {str(e)}"
         )
-    
-
-# @app.post("/test-logstash")
-# async def test_logstash_payload(request: Request):
-#     """
-#     Test endpoint to visualize exactly what Logstash will send.
-#     Prints the received JSON, counts the CSV fields, and returns it back unchanged.
-#     """
-#     # global examples
-#     # if examples == 0:
-#     #     examples += 1
-#     try:
-#         data = await request.json()
-
-#         # ✅ Count the number of CSV headers or fields
-#         if "csv" in data and isinstance(data["csv"], list):
-#             count = len(data["csv"])
-#             if count != 82:
-#                 print("\n===== Received Payload from Logstash =====")
-#                 print(f"Expected 82 CSV fields, but got {count}")
-#                 print(f"CSV Data: {data['csv']}")
-#         else:
-#             print("--> No 'csv' key found or invalid format")
-
-#         print("=========================================\n")
-
-#         # Optionally, include it in the JSON response
-#         return {"received": data, "field_count": count if "csv" in data else None}
-
-#     except Exception as e:
-#         print(f"Error parsing payload: {e}")
-#         raise HTTPException(status_code=400, detail="Invalid JSON format")
 
 
 if __name__ == "__main__":
-    # Run the API server
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
         port=8000,
-        reload=True,  # Set to False in production
-        log_level="warning"
+        reload=True,
+        log_level="info"
     )
