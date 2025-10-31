@@ -631,22 +631,49 @@ def csv_array_to_feature_dict(csv_array: List[str]) -> Dict[str, float]:
     return feature_dict
 
 
-@app.post("/predict/csv", response_model=PredictionOutput)
-async def predict_from_csv(input_data: CSVFlowInput):
+@app.post("/predict/csv")
+async def predict_from_csv(request: Request):
     """
     Predict if a network flow is benign or an attack from CSV format.
     
-    Accepts either:
-    - A comma-separated string: "192.168.10.3,192.168.10.1,61834,53,..."
-    - An array: ["192.168.10.3", "192.168.10.1", "61834", "53", ...]
+    Expects a JSON body with a "csv" field containing either:
+    - A comma-separated string: {"csv": "192.168.10.3,192.168.10.1,61834,53,..."}
+    - An array: {"csv": ["192.168.10.3", "192.168.10.1", "61834", "53", ...]}
     
-    Supports both 80 fields (CICFlowMeter) and 82 fields (with IPs).
+    Returns: {"prediction": "BENIGN/ATTACK", "confidence": 0.123, "is_anomaly": false}
     """
     global examples
 
     try:
-        # input_data.csv is now a list of strings (parsed by validator)
-        csv_fields = input_data.csv
+        # Parse the JSON body
+        data = await request.json()
+        
+        # Extract the CSV data
+        if "csv" not in data:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Missing 'csv' field in request body"
+            )
+        
+        csv_data = data["csv"]
+        
+        # Convert to list if it's a string
+        if isinstance(csv_data, str):
+            csv_fields = [field.strip() for field in csv_data.split(',')]
+        elif isinstance(csv_data, list):
+            csv_fields = csv_data
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="'csv' field must be a string or array"
+            )
+        
+        # Validate field count
+        if len(csv_fields) not in [80, 82]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"CSV must have 80 or 82 fields, got {len(csv_fields)}"
+            )
         
         # Debug: Print first example
         if examples == 0:
@@ -673,8 +700,15 @@ async def predict_from_csv(input_data: CSVFlowInput):
         # Log prediction result
         print(f"✓ Prediction: {result.prediction} (confidence: {result.confidence:.4f})")
         
-        return result
+        # Return the prediction result as JSON
+        return {
+            "prediction": result.prediction,
+            "confidence": result.confidence,
+            "is_anomaly": result.is_anomaly
+        }
         
+    except HTTPException:
+        raise
     except RuntimeError as e:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
