@@ -3,15 +3,6 @@ logging.to_stderr: true
 logging.to_syslog: false
 logging.to_files: false
 
-# filebeat.inputs:
-#   - type: filestream
-#     id: suricata-eve
-#     enabled: true
-#     paths:
-#       - /var/log/suricata/eve.json
-#     parsers:
-#       - ndjson:
-#           target: ""
 
 filebeat.inputs:
   - type: filestream
@@ -34,15 +25,7 @@ processors:
       fail_on_error: true         # revert changes on error
 
 
-# Optional: drop all events that are not flow records
-# processors:
-#   - drop_event:
-#       when:
-#         not:
-#           equals:
-#             event_type: "flow"
 
-# Send to Logstash
 output.logstash:
   hosts: ["logstash:6000"]
 
