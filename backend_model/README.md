@@ -1,15 +1,67 @@
-# OCSVM Intrusion Detection API
+# OCSVM Network Intrusion Detection API
 
-FastAPI-based REST API for real-time network intrusion detection using a pre-trained One-Class SVM model.
+[![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/release/python-3110/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.104.1-009688.svg?logo=fastapi)](https://fastapi.tiangolo.com)
+[![Docker](https://img.shields.io/badge/docker-enabled-2496ED.svg?logo=docker)](https://www.docker.com/)
 
-## Features
+A production-ready REST API for **real-time network intrusion detection** using a One-Class Support Vector Machine (OCSVM) anomaly detection model. This service provides high-performance classification of network traffic flows, distinguishing between benign and malicious activity based on the CICIDS2017 dataset features.
 
--  **Real-time Prediction**: Classify network traffic as BENIGN or ATTACK
--  **Batch Processing**: Process multiple flows simultaneously
--  **Model Info**: Get detailed information about the loaded model
--  **Health Checks**: Monitor API and model status
--  **Docker Support**: Easy deployment with Docker
--  **Interactive Docs**: Auto-generated API documentation
+---
+
+##  Table of Contents
+
+- [Overview](#overview)
+- [Features](#features)
+- [Architecture](#architecture)
+- [Model Details](#model-details)
+- [Installation](#installation)
+- [API Documentation](#api-documentation)
+- [Usage Examples](#usage-examples)
+- [Data Format Specifications](#data-format-specifications)
+- [Deployment](#deployment)
+- [Performance & Monitoring](#performance--monitoring)
+- [Development](#development)
+- [Troubleshooting](#troubleshooting)
+- [Security Considerations](#security-considerations)
+- [License](#license)
+
+---
+
+##  Overview
+
+This FastAPI-based microservice serves a pre-trained One-Class SVM model for detecting network intrusions in real-time. The model is trained on the CICIDS2017 dataset and implements a paper-compliant anomaly detection approach that identifies malicious network traffic patterns.
+
+### Key Capabilities
+
+-  **Real-time Classification**: Sub-millisecond prediction latency for single flows
+-  **Batch Processing**: Efficient bulk predictions for multiple flows
+-  **Multi-Format Input**: Supports JSON, CSV string, and CSV array formats
+-  **Auto-Preprocessing**: Automatic feature engineering and scaling
+-  **Production-Ready**: Docker containerization, health checks, and monitoring
+-  **Interactive Documentation**: Auto-generated OpenAPI/Swagger UI
+-  **Comprehensive Validation**: Input validation with detailed error messages
+
+---
+
+##  Features
+
+### Core Functionality
+
+- **Single Flow Prediction**: Classify individual network flows with confidence scores
+- **Batch Prediction**: Process multiple flows simultaneously with aggregate statistics
+- **CSV Integration**: Direct CSV input support for integration with traffic analyzers
+- **Feature Introspection**: Query model's expected features and configuration
+- **Model Metadata**: Access detailed model information and performance metrics
+
+### Technical Features
+
+- **Smart Preprocessing**: Automatic handling of missing features, infinite values, and type conversion
+- **Flexible Input Formats**: JSON dictionaries, CSV strings, or CSV arrays
+- **CORS Enabled**: Cross-origin resource sharing for web integrations
+- **Health Monitoring**: Endpoint for Kubernetes/Docker health checks
+- **Debug Mode**: Comprehensive logging for development and troubleshooting
+- **Non-root Execution**: Security-hardened Docker container
+- **Graceful Degradation**: Informative errors when model is unavailable
 
 ## Quick Start
 
