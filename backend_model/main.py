@@ -629,8 +629,8 @@ def csv_array_to_feature_dict(csv_array: List) -> Dict[str, float]:
     return feature_dict
 
 
-@app.post("/predict/csv", response_model=PredictionOutput)
-async def predict_from_csv(input_data: CSVFlowInput):
+@app.post("/predict/csv")
+async def predict_from_csv(request: Request):
     """
     Predict if a network flow is benign or an attack from CSV array format.
     
@@ -645,7 +645,9 @@ async def predict_from_csv(input_data: CSVFlowInput):
     if examples == 0:
         examples += 1
         print("\n===== Received CSV Input =====")
-        print(input_data.csv)
+        data = await request.json()
+        input_data = CSVFlowInput(data['csv'])
+        print(f"CSV Data: {input_data}")
         print("================================\n")
         try:
             # Convert CSV array to feature dictionary
@@ -653,8 +655,8 @@ async def predict_from_csv(input_data: CSVFlowInput):
             
             # Make prediction using existing model
             result = model_manager.predict_single(feature_dict)
-            return result
-            
+            print(f"Prediction Result: {result}\n")
+            return {"label": "0"}
         except RuntimeError as e:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -702,20 +704,32 @@ async def predict_batch_from_csv(csv_flows: List[List]):
 # async def test_logstash_payload(request: Request):
 #     """
 #     Test endpoint to visualize exactly what Logstash will send.
-#     Prints the received JSON and returns it back unchanged.
+#     Prints the received JSON, counts the CSV fields, and returns it back unchanged.
 #     """
-#     global examples
-#     if examples == 0:
-#         examples += 1
-#         try:
-#             data = await request.json()
-#             print("\n===== Received Payload from Logstash =====")
-#             print(data)
-#             print("=========================================\n")
-#             return {"received": data}
-#         except Exception as e:
-#             print(f"Error parsing payload: {e}")
-#             raise HTTPException(status_code=400, detail="Invalid JSON format")
+#     # global examples
+#     # if examples == 0:
+#     #     examples += 1
+#     try:
+#         data = await request.json()
+
+#         # ✅ Count the number of CSV headers or fields
+#         if "csv" in data and isinstance(data["csv"], list):
+#             count = len(data["csv"])
+#             if count != 82:
+#                 print("\n===== Received Payload from Logstash =====")
+#                 print(f"Expected 82 CSV fields, but got {count}")
+#                 print(f"CSV Data: {data['csv']}")
+#         else:
+#             print("--> No 'csv' key found or invalid format")
+
+#         print("=========================================\n")
+
+#         # Optionally, include it in the JSON response
+#         return {"received": data, "field_count": count if "csv" in data else None}
+
+#     except Exception as e:
+#         print(f"Error parsing payload: {e}")
+#         raise HTTPException(status_code=400, detail="Invalid JSON format")
 
 
 if __name__ == "__main__":
@@ -725,5 +739,5 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=8000,
         reload=True,  # Set to False in production
-        log_level="info"
+        log_level="warning"
     )
