@@ -24,7 +24,11 @@ outputs:
       # Enable a wide range of event types for maximum detail.
       types:
         - alert
-        - flow
+        - flow:
+            enabled: yes
+            extended: yes
+        - stats:
+            enabled: yes
         - http
         - tls
         - dns
@@ -61,16 +65,20 @@ stream-events:
 
 # Flow logging
 flow:
-  memcap: 32mb
+  memcap: 128mb
   hash-size: 65536
-  prealloc: 1024
+  prealloc: 10000
   emergency-recovery: 30
   flow-timeouts:
     default:
       new: 30
       established: 300
-      closed: 10
+      closed: 0
+      emergency-new: 10
+      emergency-established: 10
+      emergency-closed: 0
+
 
 # Stats logging is useful for checking performance, but can be disabled for minimal output.
 stats:
-  enabled: no
+  enabled: yes
